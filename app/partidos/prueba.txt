@@ -1,0 +1,102 @@
+// ── Country ISO code lookup ──────────────────────────────
+const FLAG_CODE_MAP: Record<string, string> = {
+  // Americas
+  Argentina: "ar",
+  Brasil: "br",
+  Uruguay: "uy",
+  Colombia: "co",
+  Chile: "cl",
+  Ecuador: "ec",
+  Paraguay: "py",
+  Bolivia: "bo",
+  Perú: "pe",
+  Peru: "pe",
+  Venezuela: "ve",
+  México: "mx",
+  Mexico: "mx",
+  "Estados Unidos": "us",
+  USA: "us",
+  Canadá: "ca",
+  Canada: "ca",
+  "Costa Rica": "cr",
+  Panamá: "pa",
+  Panama: "pa",
+  Honduras: "hn",
+  Jamaica: "jm",
+  "El Salvador": "sv",
+  Guatemala: "gt",
+
+  // Europe
+  España: "es",
+  Espana: "es",
+  Francia: "fr",
+  Alemania: "de",
+  Italia: "it",
+  Portugal: "pt",
+  "Países Bajos": "nl",
+  Holanda: "nl",
+  Bélgica: "be",
+  Belgica: "be",
+  Inglaterra: "gb",
+  Croacia: "hr",
+  Suiza: "ch",
+  Austria: "at",
+  Dinamarca: "dk",
+  Suecia: "se",
+  Noruega: "no",
+  Polonia: "pl",
+  Serbia: "rs",
+  Turquía: "tr",
+  Turquia: "tr",
+  Ucrania: "ua",
+  "República Checa": "cz",
+  Eslovaquia: "sk",
+  Hungría: "hu",
+  Hungria: "hu",
+  Grecia: "gr",
+  Rumania: "ro",
+  Bulgaria: "bg",
+  Albania: "al",
+  Eslovenia: "si",
+
+  // Africa
+  Marruecos: "ma",
+  Senegal: "sn",
+  Nigeria: "ng",
+  Ghana: "gh",
+  Camerún: "cm",
+  Camerun: "cm",
+  "Costa de Marfil": "ci",
+  Egipto: "eg",
+  Argelia: "dz",
+  Túnez: "tn",
+  Tunez: "tn",
+  "Sudáfrica": "za",
+  Sudafrica: "za",
+  Mali: "ml",
+  Guinea: "gn",
+
+  // Asia
+  Japón: "jp",
+  Japon: "jp",
+  "Corea del Sur": "kr",
+  Australia: "au",
+  "Arabia Saudita": "sa",
+  Irán: "ir",
+  Iran: "ir",
+  Qatar: "qa",
+  China: "cn",
+  Indonesia: "id",
+  Uzbekistán: "uz",
+  Iraq: "iq",
+};
+
+
+function getFlagUrl(team: string): string | null {
+  const code = FLAG_CODE_MAP[team];
+  if (!code) return null;
+
+  return `https://flagcdn.com/w80/${code}.png`;
+}
+
+
