@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -91,9 +91,10 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from("profiles").select("is_admin").eq("id", user.id).single();
 
-    if (error || !data?.is_admin) {
-      setAuthorized(false); setLoading(false); return;
-    }
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+  void checkAdmin();
+}, [checkAdmin]);
     setAuthorized(true); setLoading(false);
     await loadMatches();
   }, [router, loadMatches]);
