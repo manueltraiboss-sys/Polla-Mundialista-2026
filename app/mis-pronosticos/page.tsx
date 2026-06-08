@@ -32,19 +32,30 @@ export default function MisPronosticosPage() {
   const [pendingMatches, setPendingMatches] = useState(0);
   const [totalMatches, setTotalMatches] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState("");
+const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     loadPredictions();
   }, []);
 
   async function loadPredictions() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+  data: { user },
+} = await supabase.auth.getUser();
 
     if (!user) {
       window.location.href = "/login";
       return;
     }
+setUserEmail(user.email || "");
 
+// si tienes el nombre guardado en metadata
+setUserName(
+  user.user_metadata?.full_name ||
+  user.user_metadata?.name ||
+  "Participante"
+);
     const { count } = await supabase
       .from("matches")
       .select("*", { count: "exact", head: true });
@@ -90,32 +101,96 @@ export default function MisPronosticosPage() {
   }
 
   function generatePDF() {
-    const doc = new jsPDF();
+  const doc = new jsPDF();
 
-    doc.setFontSize(18);
-    doc.text("Polla Mundial 2026", 14, 15);
+  const fechaGeneracion = new Date().toLocaleString("es-EC", {
+    timeZone: "America/Guayaquil",
+  });
 
-    doc.setFontSize(12);
-    doc.text(`Fecha: ${new Date().toLocaleDateString("es-EC")}`, 14, 25);
-    doc.text(`Total de puntos: ${totalPoints}`, 14, 33);
+  // =========================
+  // CABECERA
+  // =========================
 
-    const rows = predictions.map((prediction) => [
-      `${prediction.matches?.home_team} vs ${prediction.matches?.away_team}`,
-      `${prediction.predicted_home} - ${prediction.predicted_away}`,
-      prediction.matches?.finished
-        ? `${prediction.matches?.home_score} - ${prediction.matches?.away_score}`
-        : "Pendiente",
-      prediction.points.toString(),
-    ]);
+  doc.setFontSize(20);
+  doc.setTextColor(41, 128, 185);
+  doc.text("Polla Mundial 2026", 14, 18);
 
-    autoTable(doc, {
-      startY: 45,
-      head: [["Partido", "Mi Pronóstico", "Resultado Oficial", "Puntos"]],
-      body: rows,
-    });
+  doc.setFontSize(11);
+  doc.setTextColor(60, 60, 60);
 
-    doc.save("mis-pronosticos-mundial-2026.pdf");
+  doc.text(`Usuario: ${userName}`, 14, 30);
+  doc.text(`Correo: ${userEmail}`, 14, 37);
+  doc.text(`Fecha de generación: ${fechaGeneracion}`, 14, 44);
+
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`Total de puntos acumulados: ${totalPoints}`, 14, 55);
+
+  // =========================
+  // TABLA
+  // =========================
+
+  const rows = predictions.map((prediction) => [
+    `${prediction.matches?.home_team} vs ${prediction.matches?.away_team}`,
+    `${prediction.predicted_home} - ${prediction.predicted_away}`,
+    prediction.matches?.finished
+      ? `${prediction.matches?.home_score} - ${prediction.matches?.away_score}`
+      : "Pendiente",
+    prediction.points.toString(),
+  ]);
+
+  autoTable(doc, {
+    startY: 65,
+    head: [["Partido", "Mi Pronóstico", "Resultado Oficial", "Puntos"]],
+    body: rows,
+
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+
+    alternateRowStyles: {
+      fillColor: [245, 245, 245],
+    },
+
+    styles: {
+      fontSize: 10,
+      cellPadding: 3,
+    },
+  });
+
+  // =========================
+  // PIE DE PÁGINA
+  // =========================
+
+  const pageCount = doc.getNumberOfPages();
+
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+
+    doc.text(
+      `Generado por ${userName} - ${fechaGeneracion}`,
+      14,
+      doc.internal.pageSize.height - 10
+    );
+
+    doc.text(
+      `Página ${i} de ${pageCount}`,
+      doc.internal.pageSize.width - 40,
+      doc.internal.pageSize.height - 10
+    );
   }
+
+  doc.save(
+    `pronosticos-${userName.replace(/\s+/g, "-")}-${new Date()
+      .toISOString()
+      .slice(0, 10)}.pdf`
+  );
+}
 
   if (loading) {
     return (

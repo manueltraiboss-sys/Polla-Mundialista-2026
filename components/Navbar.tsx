@@ -43,6 +43,7 @@ export default function Navbar() {
     { href: "/partidos", label: "Partidos", icon: "🗓️" },
     { href: "/ranking", label: "Ranking", icon: "🏅" },
     { href: "/mis-pronosticos", label: "Mis Pronósticos", icon: "📝" },
+    {href: "/reglas", label: "Reglas", icon: "📜"},
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: "⚙️" }] : []),
   ];
 

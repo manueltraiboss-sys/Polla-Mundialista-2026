@@ -104,6 +104,14 @@ export default function LoginPage() {
           <Link href="/register" className="text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors">
             ¿No tienes cuenta? <span className="text-[var(--primary)] font-semibold">Regístrate aquí</span>
           </Link>
+          <div className="text-right mt-2">
+  <Link
+    href="/forgot-password"
+    className="text-sm text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors"
+  >
+    ¿Olvidaste tu contraseña?
+  </Link>
+</div>
         </div>
       </Card>
     </div>

@@ -155,7 +155,10 @@ export default function PartidosPage() {
     const stages = [...new Set((matchesData || []).map((m) => m.stage))].sort(
       (a, b) => a.localeCompare(b)
     );
-    if (stages.length > 0) setActiveStage(stages[0]);
+    if (stages.length > 0 && !activeStage) {
+  setActiveStage(stages[0]);
+}
+    
   }
 
   const checkScroll = () => {
@@ -217,21 +220,49 @@ export default function PartidosPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const prediction = inputs[matchId];
-    if (!prediction || prediction.predicted_home === "" || prediction.predicted_away === "")
-      return toast.error("Ingrese ambos marcadores");
+    // const prediction = inputs[matchId];
+    // if (!prediction || prediction.predicted_home === "" || prediction.predicted_away === "")
+    //   return toast.error("Ingrese ambos marcadores");
 
+    const prediction = inputs[matchId] || {
+  predicted_home: "0",
+  predicted_away: "0",
+};
+
+const homeScore =
+  prediction.predicted_home === ""
+    ? 0
+    : Number(prediction.predicted_home);
+
+const awayScore =
+  prediction.predicted_away === ""
+    ? 0
+    : Number(prediction.predicted_away);
     setSaving(matchId);
 
-    const { error } = await supabase.from("predictions").upsert(
-      {
-        user_id: user.id,
-        match_id: matchId,
-        predicted_home: Number(prediction.predicted_home),
-        predicted_away: Number(prediction.predicted_away),
-      },
-      { onConflict: "user_id,match_id" }
-    );
+    // const { error } = await supabase.from("predictions").upsert(
+    //   {
+    //     user_id: user.id,
+    //     match_id: matchId,
+    //     predicted_home: Number(prediction.predicted_home),
+    //     predicted_away: Number(prediction.predicted_away),
+    //   },
+    //   { onConflict: "user_id,match_id" }
+    // );
+
+    const { error } = await supabase
+  .from("predictions")
+  .upsert(
+    {
+      user_id: user.id,
+      match_id: matchId,
+      predicted_home: homeScore,
+      predicted_away: awayScore,
+    },
+    {
+      onConflict: "user_id,match_id",
+    }
+  );
 
     setSaving(null);
 
@@ -430,7 +461,7 @@ export default function PartidosPage() {
                           pattern="[0-9]*"
                           className="w-10 text-center font-black text-xl bg-transparent text-[var(--foreground)] outline-none disabled:opacity-50"
                           disabled={closed}
-                          value={inputs[match.id]?.predicted_home ?? ""}
+                          value={inputs[match.id]?.predicted_home ?? "0"}
                           placeholder="0"
                           onChange={(e) => handleScoreChange(match.id, "home", e.target.value)}
                         />
@@ -456,7 +487,7 @@ export default function PartidosPage() {
                           pattern="[0-9]*"
                           className="w-10 text-center font-black text-xl bg-transparent text-[var(--foreground)] outline-none disabled:opacity-50"
                           disabled={closed}
-                          value={inputs[match.id]?.predicted_away ?? ""}
+                          value={inputs[match.id]?.predicted_away ?? "0"}
                           placeholder="0"
                           onChange={(e) => handleScoreChange(match.id, "away", e.target.value)}
                         />
