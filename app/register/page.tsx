@@ -2,28 +2,21 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import styles from "./Register.module.css";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import PasswordStrength from "@/components/ui/PasswordStrength";
 
 export default function RegisterPage() {
+  const router = useRouter();
+  
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [strength, setStrength] = useState(0);
-
-  const calcStrength = (pw: string) => {
-    let score = 0;
-
-    if (pw.length >= 6) score++;
-    if (pw.length >= 10) score++;
-    if (/[A-Z]/.test(pw) || /[^a-zA-Z0-9]/.test(pw)) score++;
-
-    setStrength(pw ? score : 0);
-  };
-
-  const strengthLabel = ["", "Débil", "Regular", "Fuerte"][strength];
 
   const register = async () => {
     if (!fullName.trim()) {
@@ -36,8 +29,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error("La contraseña debe tener al menos 6 caracteres");
+    if (password.length < 8) {
+      toast.error("La contraseña debe tener al menos 8 caracteres");
       return;
     }
 
@@ -59,12 +52,10 @@ export default function RegisterPage() {
       return;
     }
 
-    toast.success(
-      "Usuario registrado. Revise su correo para activar la cuenta."
-    );
+    toast.success("Usuario registrado. Revise su correo para activar la cuenta.");
 
     setTimeout(() => {
-      window.location.href = "/login";
+      router.push("/login"); // ✅ Cambiado de window.location.href a router.push()
     }, 2000);
   };
 
@@ -75,27 +66,31 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className={styles.regRoot}>
-      <div className={styles.topDecoration} />
-      <div className={styles.bottomDecoration} />
+    <div className="min-h-screen flex justify-center items-center relative overflow-hidden p-4 sm:p-6 bg-animated-gradient">
+      
+      {/* Elementos decorativos de fondo (Consistentes con Login) */}
+      <div className="absolute top-0 right-0 w-[250px] sm:w-[350px] h-[250px] sm:h-[350px] bg-[var(--primary)] opacity-10 rounded-full translate-x-[30%] -translate-y-[30%] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-[var(--accent)] opacity-10 rounded-full -translate-x-[30%] translate-y-[30%] pointer-events-none" />
 
-      <div className={styles.card}>
-        <div className={styles.logo}>
-          <img
-            src="/Logos Incarpalm RGB-01.png"
-            alt="IncarPalm"
+      <Card className="max-w-[480px] p-8 sm:p-10 md:p-12 z-10 relative">
+        <div className="text-center mb-6">
+          <img 
+            src="/Logos Incarpalm RGB-01.png" 
+            alt="IncarPalm" 
+            className="h-16 mx-auto object-contain"
           />
         </div>
 
-        <h1 className={styles.title}>
-          Crear <span>Cuenta</span>
+        <h1 className="text-3xl font-bold text-center text-[var(--primary)] mb-2">
+          Crear <span className="text-[var(--accent)]">Cuenta</span>
         </h1>
 
-        <p className={styles.subtitle}>
+        <p className="text-center text-[var(--text-secondary)] mb-6 font-medium">
           Acceda al sistema corporativo de IncarPalm
         </p>
 
-        <div className={styles.steps}>
+        {/* Indicador de pasos */}
+        <div className="flex gap-2 mb-8">
           {[0, 1, 2].map((i) => {
             const filled =
               (i === 0 && fullName.trim()) ||
@@ -105,99 +100,57 @@ export default function RegisterPage() {
             return (
               <div
                 key={i}
-                className={`${styles.step} ${
-                  filled ? styles.stepFilled : ""
+                className={`flex-1 h-1.5 rounded-full transition-colors duration-300 ${
+                  filled ? "bg-[var(--accent)]" : "bg-[var(--surface-border)]"
                 }`}
               />
             );
           })}
         </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>
-            Nombre completo
-          </label>
-
-          <input
+        <div className="space-y-1">
+          <Input
+            label="Nombre completo"
             type="text"
-            className={styles.input}
             placeholder="Ej. Juan Pérez"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-        </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>
-            Correo electrónico
-          </label>
-
-          <input
+          <Input
+            label="Correo electrónico"
             type="email"
-            className={styles.input}
             placeholder="correo@empresa.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={handleKeyDown}
           />
+
+          <div>
+            <Input
+              label="Contraseña"
+              type="password"
+              placeholder="Mínimo 8 caracteres"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="mb-0" // Reducimos margen para que el medidor quede más cerca
+            />
+            <PasswordStrength password={password} />
+          </div>
         </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>
-            Contraseña
-          </label>
+        <Button onClick={register} disabled={loading} className="mt-6">
+          {loading ? "Registrando..." : "Crear Cuenta"}
+        </Button>
 
-          <input
-            type="password"
-            className={styles.input}
-            placeholder="Mínimo 6 caracteres"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              calcStrength(e.target.value);
-            }}
-            onKeyDown={handleKeyDown}
-          />
-
-          {password.length > 0 && (
-            <div className={styles.strengthWrapper}>
-              <div className={styles.strengthBars}>
-                {[1, 2, 3].map((seg) => (
-                  <div
-                    key={seg}
-                    className={`${styles.strengthBar} ${
-                      strength >= seg
-                        ? styles.strengthBarActive
-                        : ""
-                    }`}
-                  />
-                ))}
-              </div>
-
-              <small className={styles.strengthLabel}>
-                {strengthLabel}
-              </small>
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={register}
-          disabled={loading}
-          className={styles.button}
-        >
-          {loading
-            ? "Registrando..."
-            : "Crear Cuenta"}
-        </button>
-
-        <div className={styles.loginLink}>
-          <Link href="/login">
-            ¿Ya tienes cuenta? <span>Inicia sesión</span>
+        <div className="mt-8 text-center text-sm sm:text-base">
+          <Link href="/login" className="text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors">
+            ¿Ya tienes cuenta? <span className="text-[var(--primary)] font-semibold">Inicia sesión</span>
           </Link>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

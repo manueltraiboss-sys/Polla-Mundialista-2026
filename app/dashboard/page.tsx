@@ -1,9 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import styles from "./dashboard.module.css";
+import { useRouter } from "next/navigation";
+
+// Componentes modulares
+import HeroCard from "@/components/dashboard/HeroCard";
+import StatCard from "@/components/dashboard/StatCard";
+import MatchCard from "@/components/dashboard/MatchCard";
+import QuickLinkCard from "@/components/dashboard/QuickLinkCard";
 
 type DashboardData = {
   fullName: string;
@@ -20,31 +25,81 @@ type NextMatch = {
   match_date: string;
 };
 
-const FLAG_MAP: Record<string, string> = {
-  Argentina: "🇦🇷",
-  Brasil: "🇧🇷",
-  Uruguay: "🇺🇾",
-  Colombia: "🇨🇴",
-  Chile: "🇨🇱",
-  Ecuador: "🇪🇨",
-  México: "🇲🇽",
-  Mexico: "🇲🇽",
-  "Estados Unidos": "🇺🇸",
-  USA: "🇺🇸",
-  Canadá: "🇨🇦",
-  Canada: "🇨🇦",
-  España: "🇪🇸",
-  Francia: "🇫🇷",
-  Alemania: "🇩🇪",
-  Italia: "🇮🇹",
-  Portugal: "🇵🇹",
-  Inglaterra: "🇬🇧",
-  Marruecos: "🇲🇦",
-  Japón: "🇯🇵",
-  "Corea del Sur": "🇰🇷",
+const getCountryCode = (teamName: string): string => {
+  const codes: Record<string, string> = {
+    // Sudamérica (CONMEBOL)
+    "Ecuador": "ec",
+    "Argentina": "ar",
+    "Brasil": "br",
+    "Colombia": "co",
+    "Uruguay": "uy",
+    "Perú": "pe",
+    "Chile": "cl",
+    "Venezuela": "ve",
+    "Paraguay": "py",
+    "Bolivia": "bo",
+    
+    // Norte/Centro América (CONCACAF)
+    "México": "mx",
+    "Estados Unidos": "us",
+    "Canadá": "ca",
+    "Costa Rica": "cr",
+    "Panamá": "pa",
+    "Haití": "ht",
+    "Curazao": "cw",
+    
+    // Europa (UEFA)
+    "España": "es",
+    "Francia": "fr",
+    "Alemania": "de",
+    "Inglaterra": "gb-eng", 
+    "Italia": "it",
+    "Portugal": "pt",
+    "Países Bajos": "nl",
+    "Bélgica": "be",
+    "Croacia": "hr",
+    "República Checa": "cz",
+    "Bosnia y Herzegovina": "ba",
+    "Suiza": "ch",
+    "Escocia": "gb-sct", // Código especial en FlagCDN
+    "Turquía": "tr",
+    "Suecia": "se",
+    "Noruega": "no",
+    "Austria": "at",
+    
+    // Asia (AFC)
+    "Japón": "jp",
+    "Corea del Sur": "kr",
+    "Catar": "qa",
+    "Irán": "ir",
+    "Arabia Saudita": "sa",
+    "Irak": "iq",
+    "Jordania": "jo",
+    "Uzbekistán": "uz",
+    
+    // África (CAF)
+    "Marruecos": "ma",
+    "Senegal": "sn",
+    "Sudáfrica": "za",
+    "Costa de Marfil": "ci",
+    "Túnez": "tn",
+    "Egipto": "eg",
+    "Cabo Verde": "cv",
+    "Argelia": "dz",
+    "RD Congo": "cd",
+    "Ghana": "gh",
+    
+    // Oceanía (OFC / AFC)
+    "Australia": "au",
+    "Nueva Zelanda": "nz",
+  };
+
+  // Normalizamos espacios y buscamos. Si no existe, usamos "un" (ONU) como fallback.
+  return codes[teamName.trim()] || "un"; 
 };
 
-const getFlag = (t: string) => FLAG_MAP[t] ?? "🏳️";
+const getFlagUrl = (teamName: string) =>
+  `https://flagcdn.com/w160/${getCountryCode(teamName)}.png`;
 
 function getPositionLabel(pos: number) {
   if (pos === 1) return { emoji: "🥇", color: "#D4AF37" };
@@ -54,17 +109,17 @@ function getPositionLabel(pos: number) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [nextMatch, setNextMatch] = useState<NextMatch | null>(null);
+  const [countdown, setCountdown] = useState("");
 
   useEffect(() => {
     async function loadDashboard() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        window.location.href = "/login";
+        router.push("/login"); // Refactorizado a router.push para SPA
         return;
       }
 
@@ -110,180 +165,123 @@ export default function DashboardPage() {
     }
 
     loadDashboard();
-  }, []);
+  }, [router]);
 
-  const progress =
-    data && data.totalMatches > 0
-      ? Math.round((data.predictions / data.totalMatches) * 100)
-      : 0;
+  useEffect(() => {
+    if (!nextMatch) return;
+
+    const updateCountdown = () => {
+      const diff = new Date(nextMatch.match_date).getTime() - Date.now();
+
+      if (diff <= 0) {
+        setCountdown("¡Comenzó!");
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (days > 0) setCountdown(`En ${days}d ${hours}h`);
+      else if (hours > 0) setCountdown(`En ${hours}h ${minutes}m`);
+      else setCountdown(`En ${minutes}m`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 60000);
+
+    return () => clearInterval(interval);
+  }, [nextMatch]);
+
+  const progress = data && data.totalMatches > 0
+    ? Math.round((data.predictions / data.totalMatches) * 100)
+    : 0;
 
   const posLabel = data ? getPositionLabel(data.position) : null;
 
+  // Estado de carga refactorizado con Tailwind
   if (!data) {
     return (
-      <div className={styles.loading}>
-        <div className={styles.spinner}></div>
+      <div className="min-h-screen flex justify-center items-center bg-animated-gradient">
+        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className={styles.dbRoot}>
-      <div className={styles.topDecoration}></div>
-      <div className={styles.bottomDecoration}></div>
+    <div className="min-h-screen relative overflow-hidden p-4 sm:p-6 md:p-8 bg-animated-gradient">
+      
+      {/* Elementos decorativos consistentes con el diseño de Login y Register */}
+      <div className="absolute top-0 right-0 w-[250px] sm:w-[350px] h-[250px] sm:h-[350px] bg-[var(--primary)] opacity-10 rounded-full translate-x-[30%] -translate-y-[30%] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-[var(--accent)] opacity-10 rounded-full -translate-x-[30%] translate-y-[30%] pointer-events-none" />
 
-      <div className={styles.container}>
-        {/* HERO */}
-<div className={styles.hero}>
-  <div className={styles.heroContent}>
-    {/* Texto */}
-    <div className={styles.heroText}>
-      <p className={styles.label}>
-        Polla Mundialista · USA · Canadá · México 2026
-      </p>
-
-      <h1 className={styles.title}>
-        Hola, <span>{data.fullName.split(" ")[0]}</span> 👋
-      </h1>
-
-      <p className={styles.subtitle}>
-        Aquí está tu resumen de la competencia
-      </p>
-
-      <div className={styles.position}>
-        <span>{posLabel?.emoji}</span>
-        <span>
-          Estas en la posición #{data.position} con {data.points} pts
-        </span>
-      </div>
-    </div>
-
-    {/* Imagen derecha */}
-    <div className={styles.heroImage}>
-      <img
-        src="/Boxi Mundialista.png"
-        alt="Boxi Mundialista"
-      />
-    </div>
-  </div>
-</div>
-
-        {/* STATS */}
-        <div className={styles.stats}>
-          {[
-            {
-              label: "Posición",
-              value: `#${data.position}`,
-              sub: posLabel?.emoji,
-            },
-            {
-              label: "Puntos",
-              value: data.points,
-              sub: "acumulados",
-            },
-            {
-              label: "Pronósticos",
-              value: `${data.predictions}/${data.totalMatches}`,
-              sub: "partidos",
-            },
-            {
-              label: "Avance",
-              value: `${progress}%`,
-              sub: "completado",
-              progress: true,
-            },
-          ].map((s, i) => (
-            <div key={i} className={styles.card}>
-              <div className={styles.cardLabel}>{s.label}</div>
-
-              <div className={styles.cardValue}>{s.value}</div>
-
-              <div className={styles.cardSub}>{s.sub}</div>
-
-              {s.progress && (
-                <div className={styles.progressBg}>
-                  <div
-                    className={styles.progressFill}
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* PRÓXIMO PARTIDO */}
-        {nextMatch && (
-  <div className={styles.nextMatch}>
-    <div className={styles.nextMatchHeader}>
-      <p className={styles.nextLabel}>
-        <span className={styles.nextBadge}>
-          <span>⏰</span> Próximo partido
-        </span>
-      </p>
-      <div className={styles.nextMeta}>
-        <span className={styles.nextDate}>
-          📅 {new Date(nextMatch.match_date).toLocaleString("es-EC", {
-            timeZone: "America/Guayaquil",
-            dateStyle: "medium",
-            timeStyle: "short",
-          })}
-        </span>
-        <span className={styles.nextCountdown}>En 5d 22h</span>
-      </div>
-    </div>
-
-    <div className={styles.teams}>
-      <div className={styles.team}>
-        <div className={styles.flagWrap}>
-          <div className={styles.flag}>{getFlag(nextMatch.home_team)}</div>
-        </div>
-        <div className={styles.teamName}>{nextMatch.home_team}</div>
-      </div>
-
-      <div className={styles.vsCol}>
-        <div className={styles.vsDivider} />
-        <div className={styles.vs}>VS</div>
-        <div className={styles.vsDivider} />
-      </div>
-
-      <div className={styles.team}>
-        <div className={styles.flagWrap}>
-          <div className={styles.flag}>{getFlag(nextMatch.away_team)}</div>
-        </div>
-        <div className={styles.teamName}>{nextMatch.away_team}</div>
-      </div>
-    </div>
-  </div>
-)}
+      <div className="max-w-6xl mx-auto relative z-10 space-y-6 md:space-y-8">
         
+        {/* HERO SECTION */}
+        <HeroCard
+          fullName={data.fullName}
+          position={data.position}
+          points={data.points}
+          emoji={posLabel?.emoji || "🏅"}
+        />
 
-        {/* ACCESOS */}
-        <div className={styles.links}>
-          <Link href="/partidos" className={styles.linkCard}>
-            <div className={styles.linkIcon}>⚽</div>
-            <div className={styles.linkTitle}>Pronósticos</div>
-            <div className={styles.linkDesc}>
-              Ver y editar tus pronósticos.
-            </div>
-          </Link>
+        {/* STATS SECTION */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <StatCard
+            label="Posición"
+            value={`#${data.position}`}
+            sub={posLabel?.emoji || ""}
+          />
+          <StatCard
+            label="Puntos"
+            value={data.points}
+            sub="acumulados"
+          />
+          <StatCard
+            label="Pronósticos"
+            value={`${data.predictions}/${data.totalMatches}`}
+            sub="partidos"
+          />
+          <StatCard
+            label="Avance"
+            value={`${progress}%`}
+            sub="completado"
+            progress={progress}
+          />
+        </div>
 
-          <Link href="/ranking" className={styles.linkCard}>
-            <div className={styles.linkIcon}>🏆</div>
-            <div className={styles.linkTitle}>Ranking</div>
-            <div className={styles.linkDesc}>
-              Consulta la tabla general.
-            </div>
-          </Link>
+        {/* MATCH SECTION */}
+        {nextMatch && (
+          <MatchCard
+  homeTeam={nextMatch.home_team}
+  awayTeam={nextMatch.away_team}
+  matchDate={nextMatch.match_date}
+  countdown={countdown}
+  getFlagUrl={getFlagUrl}
+/>
+        )}
 
+        {/* QUICK LINKS SECTION */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <QuickLinkCard
+            href="/partidos"
+            icon="⚽"
+            title="Pronósticos"
+            description="Ver y editar tus pronósticos."
+          />
+          <QuickLinkCard
+            href="/ranking"
+            icon="🏆"
+            title="Ranking"
+            description="Consulta la tabla general."
+          />
           {data.isAdmin && (
-            <Link href="/admin" className={styles.linkCard}>
-              <div className={styles.linkIcon}>⚙️</div>
-              <div className={styles.linkTitle}>Administración</div>
-              <div className={styles.linkDesc}>
-                Gestión de partidos y resultados.
-              </div>
-            </Link>
+            <QuickLinkCard
+              href="/admin"
+              icon="⚙️"
+              title="Administración"
+              description="Gestión de partidos y resultados."
+            />
           )}
         </div>
       </div>

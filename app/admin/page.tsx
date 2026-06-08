@@ -84,22 +84,36 @@ export default function AdminPage() {
     }
   }, [activeStage]);
 
-  const checkAdmin = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { router.push("/login"); return; }
+const checkAdmin = useCallback(async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-    const { data, error } = await supabase
-      .from("profiles").select("is_admin").eq("id", user.id).single();
+  if (!user) {
+    router.push("/login");
+    return;
+  }
 
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
-  void checkAdmin();
-}, [checkAdmin]);
-    setAuthorized(true); setLoading(false);
-    await loadMatches();
-  }, [router, loadMatches]);
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
 
-  if (loading) { void (async () => { await checkAdmin(); })(); }
+  if (error || !data?.is_admin) {
+    setAuthorized(false);
+    setLoading(false);
+    return;
+  }
+
+  setAuthorized(true);
+  await loadMatches();
+  setLoading(false);
+}, [router, loadMatches]);
+
+ useEffect(() => {
+    void checkAdmin();
+  }, [checkAdmin]);
 
   async function saveResult(matchId: number) {
     const score = scores[matchId];
