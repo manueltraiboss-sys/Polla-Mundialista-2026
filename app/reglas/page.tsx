@@ -1,6 +1,41 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import Card from "@/components/ui/Card";
 
 export default function ReglasPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+      
+      // Si hay usuario, quitamos el estado de carga y mostramos las reglas
+      setLoading(false);
+    };
+
+    checkAuth();
+  }, [router]);
+
+  // Pantalla de carga mientras verifica la sesión
+  if (loading) {
+    return (
+      <div className="min-h-screen flex justify-center items-center bg-animated-gradient">
+        <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen relative overflow-hidden p-4 sm:p-6 md:p-8 bg-animated-gradient">
 

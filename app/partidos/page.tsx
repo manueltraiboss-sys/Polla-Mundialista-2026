@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
+import { useRouter } from "next/navigation";
 
 type Match = {
   id: number;
@@ -30,78 +31,77 @@ type PredictionInputs = {
 };
 
 // Helper: Mapeo de selecciones a códigos ISO para FlagCDN
-// Helper: Mapeo de selecciones a códigos ISO para FlagCDN
 const getCountryCode = (teamName: string): string => {
   const codes: Record<string, string> = {
     // Sudamérica (CONMEBOL)
-    "Ecuador": "ec",
-    "Argentina": "ar",
-    "Brasil": "br",
-    "Colombia": "co",
-    "Uruguay": "uy",
-    "Perú": "pe",
-    "Chile": "cl",
-    "Venezuela": "ve",
-    "Paraguay": "py",
-    "Bolivia": "bo",
-    
+    Ecuador: "ec",
+    Argentina: "ar",
+    Brasil: "br",
+    Colombia: "co",
+    Uruguay: "uy",
+    Perú: "pe",
+    Chile: "cl",
+    Venezuela: "ve",
+    Paraguay: "py",
+    Bolivia: "bo",
+
     // Norte/Centro América (CONCACAF)
-    "México": "mx",
+    México: "mx",
     "Estados Unidos": "us",
-    "Canadá": "ca",
+    Canadá: "ca",
     "Costa Rica": "cr",
-    "Panamá": "pa",
-    "Haití": "ht",
-    "Curazao": "cw",
-    
+    Panamá: "pa",
+    Haití: "ht",
+    Curazao: "cw",
+
     // Europa (UEFA)
-    "España": "es",
-    "Francia": "fr",
-    "Alemania": "de",
-    "Inglaterra": "gb-eng", 
-    "Italia": "it",
-    "Portugal": "pt",
+    España: "es",
+    Francia: "fr",
+    Alemania: "de",
+    Inglaterra: "gb-eng",
+    Italia: "it",
+    Portugal: "pt",
     "Países Bajos": "nl",
-    "Bélgica": "be",
-    "Croacia": "hr",
+    Bélgica: "be",
+    Croacia: "hr",
     "República Checa": "cz",
     "Bosnia y Herzegovina": "ba",
-    "Suiza": "ch",
-    "Escocia": "gb-sct", // Código especial en FlagCDN
-    "Turquía": "tr",
-    "Suecia": "se",
-    "Noruega": "no",
-    "Austria": "at",
-    
+    Suiza: "ch",
+    Escocia: "gb-sct", // Código especial en FlagCDN
+    Turquía: "tr",
+    Suecia: "se",
+    Noruega: "no",
+    Austria: "at",
+
     // Asia (AFC)
-    "Japón": "jp",
+    Japón: "jp",
     "Corea del Sur": "kr",
-    "Catar": "qa",
-    "Irán": "ir",
+    Catar: "qa",
+    Irán: "ir",
     "Arabia Saudita": "sa",
-    "Irak": "iq",
-    "Jordania": "jo",
-    "Uzbekistán": "uz",
-    
+    Irak: "iq",
+    Jordania: "jo",
+    Uzbekistán: "uz",
+
     // África (CAF)
-    "Marruecos": "ma",
-    "Senegal": "sn",
-    "Sudáfrica": "za",
+    Marruecos: "ma",
+    Senegal: "sn",
+    Sudáfrica: "za",
     "Costa de Marfil": "ci",
-    "Túnez": "tn",
-    "Egipto": "eg",
+    Túnez: "tn",
+    Egipto: "eg",
     "Cabo Verde": "cv",
-    "Argelia": "dz",
+    Argelia: "dz",
     "RD Congo": "cd",
-    "Ghana": "gh",
-    
+    Ghana: "gh",
+
     // Oceanía (OFC / AFC)
-    "Australia": "au",
+    Australia: "au",
     "Nueva Zelanda": "nz",
   };
 
   // Normalizamos espacios y buscamos. Si no existe, usamos "un" (ONU) como fallback.
-  return codes[teamName.trim()] || "un"; 
+  return codes[teamName.trim()] || "un";
 };
 
 // Helper: Construye la URL de FlagCDN
@@ -109,9 +109,12 @@ const getFlagUrl = (countryCode: string) =>
   `https://flagcdn.com/w80/${countryCode.toLowerCase()}.png`;
 
 export default function PartidosPage() {
+  const router = useRouter();
   const [matches, setMatches] = useState<Match[]>([]);
   const [inputs, setInputs] = useState<PredictionInputs>({});
-  const [predictions, setPredictions] = useState<Record<number, Prediction>>({});
+  const [predictions, setPredictions] = useState<Record<number, Prediction>>(
+    {},
+  );
   const [saving, setSaving] = useState<number | null>(null);
   const [activeStage, setActiveStage] = useState<string | null>(null);
 
@@ -124,8 +127,13 @@ export default function PartidosPage() {
   }, []);
 
   async function loadData() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return toast.error("Debe iniciar sesión");
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/login");
+      return;
+    }
 
     const { data: matchesData } = await supabase
       .from("matches")
@@ -153,12 +161,11 @@ export default function PartidosPage() {
     setMatches(matchesData || []);
 
     const stages = [...new Set((matchesData || []).map((m) => m.stage))].sort(
-      (a, b) => a.localeCompare(b)
+      (a, b) => a.localeCompare(b),
     );
     if (stages.length > 0 && !activeStage) {
-  setActiveStage(stages[0]);
-}
-    
+      setActiveStage(stages[0]);
+    }
   }
 
   const checkScroll = () => {
@@ -184,28 +191,38 @@ export default function PartidosPage() {
 
   const isMatchClosed = (date: string) => new Date() >= new Date(date);
 
-  const handleScoreChange = (matchId: number, team: "home" | "away", value: string) => {
+  const handleScoreChange = (
+    matchId: number,
+    team: "home" | "away",
+    value: string,
+  ) => {
     if (!/^\d*$/.test(value)) return;
     setInputs((prev) => ({
       ...prev,
       [matchId]: {
-        ...prev[matchId],
+        predicted_home: prev[matchId]?.predicted_home ?? "0",
+        predicted_away: prev[matchId]?.predicted_away ?? "0",
         [team === "home" ? "predicted_home" : "predicted_away"]: value,
       },
     }));
   };
 
-  const adjustScore = (matchId: number, team: "home" | "away", delta: number) => {
+  const adjustScore = (
+    matchId: number,
+    team: "home" | "away",
+    delta: number,
+  ) => {
     setInputs((prev) => {
       const field = team === "home" ? "predicted_home" : "predicted_away";
-      const currentVal = prev[matchId]?.[field] || "0";
+      const currentVal = prev[matchId]?.[field] ?? "0";
       const num = parseInt(currentVal, 10) || 0;
       const nextVal = Math.max(0, num + delta);
 
       return {
         ...prev,
         [matchId]: {
-          ...prev[matchId],
+          predicted_home: prev[matchId]?.predicted_home ?? "0",
+          predicted_away: prev[matchId]?.predicted_away ?? "0",
           [field]: nextVal.toString(),
         },
       };
@@ -213,70 +230,59 @@ export default function PartidosPage() {
   };
 
   const savePrediction = async (matchId: number) => {
-    const match = matches.find((m) => m.id === matchId);
-    if (match && isMatchClosed(match.match_date))
-      return toast.error("El partido ya inició.");
+  const match = matches.find((m) => m.id === matchId);
+  if (match && isMatchClosed(match.match_date))
+    return toast.error("El partido ya inició.");
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
 
-    // const prediction = inputs[matchId];
-    // if (!prediction || prediction.predicted_home === "" || prediction.predicted_away === "")
-    //   return toast.error("Ingrese ambos marcadores");
+  // Obtenemos el pronóstico, usando "0" como fallback si no se ha tocado
+  const prediction = inputs[matchId];
+  const homeVal = prediction?.predicted_home ?? "0";
+  const awayVal = prediction?.predicted_away ?? "0";
 
-    const prediction = inputs[matchId] || {
-  predicted_home: "0",
-  predicted_away: "0",
+  // Validación estricta: solo falla si el input está literalmente vacío
+  if (homeVal === "" || awayVal === "") {
+    return toast.error("Ingrese ambos marcadores. No pueden estar vacíos.");
+  }
+
+  // Convertimos a número de forma segura
+  const homeScore = Number(homeVal);
+  const awayScore = Number(awayVal);
+
+  setSaving(matchId);
+
+  const { error } = await supabase
+    .from("predictions")
+    .upsert(
+      {
+        user_id: user.id,
+        match_id: matchId,
+        predicted_home: homeScore,
+        predicted_away: awayScore,
+      },
+      {
+        onConflict: "user_id,match_id",
+      }
+    );
+
+  setSaving(null);
+
+  if (error) return toast.error(error.message);
+
+  toast.success("Pronóstico guardado ✓");
+  loadData();
 };
 
-const homeScore =
-  prediction.predicted_home === ""
-    ? 0
-    : Number(prediction.predicted_home);
-
-const awayScore =
-  prediction.predicted_away === ""
-    ? 0
-    : Number(prediction.predicted_away);
-    setSaving(matchId);
-
-    // const { error } = await supabase.from("predictions").upsert(
-    //   {
-    //     user_id: user.id,
-    //     match_id: matchId,
-    //     predicted_home: Number(prediction.predicted_home),
-    //     predicted_away: Number(prediction.predicted_away),
-    //   },
-    //   { onConflict: "user_id,match_id" }
-    // );
-
-    const { error } = await supabase
-  .from("predictions")
-  .upsert(
-    {
-      user_id: user.id,
-      match_id: matchId,
-      predicted_home: homeScore,
-      predicted_away: awayScore,
+  const groupedMatches = matches.reduce(
+    (acc, match) => {
+      if (!acc[match.stage]) acc[match.stage] = [];
+      acc[match.stage].push(match);
+      return acc;
     },
-    {
-      onConflict: "user_id,match_id",
-    }
+    {} as Record<string, Match[]>,
   );
-
-    setSaving(null);
-
-    if (error) return toast.error(error.message);
-
-    toast.success("Pronóstico guardado ✓");
-    loadData();
-  };
-
-  const groupedMatches = matches.reduce((acc, match) => {
-    if (!acc[match.stage]) acc[match.stage] = [];
-    acc[match.stage].push(match);
-    return acc;
-  }, {} as Record<string, Match[]>);
 
   const visibleMatches = activeStage ? groupedMatches[activeStage] || [] : [];
 
@@ -286,13 +292,12 @@ const awayScore =
       <div className="absolute bottom-0 left-0 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-[var(--accent)] opacity-10 rounded-full -translate-x-[30%] translate-y-[30%] pointer-events-none" />
 
       <div className="max-w-5xl mx-auto relative z-10 space-y-6 md:space-y-8">
-        
         <Card className="text-center p-6 md:p-10 border border-[var(--surface-border)] shadow-sm">
           <p className="uppercase tracking-widest text-xs font-bold text-[var(--primary)] bg-[var(--primary)]/10 inline-block px-4 py-1.5 rounded-full mb-3">
             Mundial 2026
           </p>
           <h1 className="text-4xl md:text-5xl font-black text-[var(--primary)] tracking-tight">
-             <span className="text-[var(--accent)]">Pronósticos</span>
+            <span className="text-[var(--accent)]">Pronósticos</span>
           </h1>
         </Card>
 
@@ -309,12 +314,28 @@ const awayScore =
             `}
             aria-label="Desplazar a la izquierda"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
           </button>
 
-          <div 
+          <div
             className="relative w-full overflow-hidden"
-            style={{ maskImage: "linear-gradient(to right, transparent, black 15px, black calc(100% - 15px), transparent)", WebkitMaskImage: "linear-gradient(to right, transparent, black 15px, black calc(100% - 15px), transparent)" }}
+            style={{
+              maskImage:
+                "linear-gradient(to right, transparent, black 15px, black calc(100% - 15px), transparent)",
+              WebkitMaskImage:
+                "linear-gradient(to right, transparent, black 15px, black calc(100% - 15px), transparent)",
+            }}
           >
             <div
               ref={scrollRef}
@@ -330,9 +351,10 @@ const awayScore =
                       key={stage}
                       className={`
                         snap-center whitespace-nowrap px-6 py-2.5 rounded-full font-bold transition-all duration-300 text-sm border
-                        ${isActive 
-                          ? "bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dark)] text-[var(--foreground)] border-transparent shadow-md scale-105" 
-                          : "bg-[var(--surface)] border-[var(--surface-border)] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                        ${
+                          isActive
+                            ? "bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dark)] text-[var(--foreground)] border-transparent shadow-md scale-105"
+                            : "bg-[var(--surface)] border-[var(--surface-border)] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
                         }
                       `}
                       onClick={() => setActiveStage(stage)}
@@ -340,7 +362,7 @@ const awayScore =
                       {stage}
                     </button>
                   );
-              })}
+                })}
             </div>
           </div>
 
@@ -355,7 +377,18 @@ const awayScore =
             `}
             aria-label="Desplazar a la derecha"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
           </button>
         </div>
 
@@ -365,20 +398,34 @@ const awayScore =
             const closed = isMatchClosed(match.match_date);
 
             return (
-              <Card 
+              <Card
                 key={match.id}
                 className={`group relative overflow-hidden p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border border-[var(--surface-border)] flex flex-col justify-between bg-gradient-to-b from-[var(--surface)] to-[var(--background)] ${
                   match.finished ? "opacity-70 grayscale-[20%]" : ""
                 }`}
               >
                 {/* Indicador superior de color decorativo */}
-                <div className={`absolute top-0 left-0 w-full h-1 ${closed ? 'bg-red-500/50' : 'bg-[var(--primary)]'}`} />
+                <div
+                  className={`absolute top-0 left-0 w-full h-1 ${closed ? "bg-red-500/50" : "bg-[var(--primary)]"}`}
+                />
 
                 <div>
                   {/* HEADER: Fecha y Estado */}
                   <div className="flex justify-between items-center mb-8">
                     <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] bg-[var(--background)] px-3 py-1.5 rounded-lg border border-[var(--surface-border)] shadow-sm">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                      </svg>
                       {new Date(match.match_date).toLocaleString("es-EC", {
                         timeZone: "America/Guayaquil",
                         month: "short",
@@ -387,18 +434,19 @@ const awayScore =
                         minute: "2-digit",
                       })}
                     </div>
-                    <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm border ${
-                      closed 
-                        ? "bg-red-500/10 text-red-500 border-red-500/20" 
-                        : "bg-[var(--primary)]/10 text-[var(--primary-hover)] border-[var(--primary)]/20 animate-pulse"
-                    }`}>
+                    <span
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm border ${
+                        closed
+                          ? "bg-red-500/10 text-red-500 border-red-500/20"
+                          : "bg-[var(--primary)]/10 text-[var(--primary-hover)] border-[var(--primary)]/20 animate-pulse"
+                      }`}
+                    >
                       {closed ? "Cerrado" : "Abierto"}
                     </span>
                   </div>
 
                   {/* BODY: Enfrentamiento Cara a Cara con Banderas */}
                   <div className="flex items-center justify-between mb-8 relative px-2">
-                    
                     {/* Equipo Local */}
                     <div className="flex flex-col items-center flex-1 z-10 w-1/3">
                       <div className="relative w-16 h-12 sm:w-20 sm:h-14 mb-4 drop-shadow-md transform transition-transform group-hover:scale-110 duration-300">
@@ -418,7 +466,9 @@ const awayScore =
                     {/* Insignia VS Central */}
                     <div className="px-2 flex flex-col items-center justify-center z-10">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[var(--background)] border border-[var(--surface-border)] shadow-inner flex items-center justify-center">
-                        <span className="text-[11px] sm:text-xs font-black text-[var(--text-secondary)] opacity-70">VS</span>
+                        <span className="text-[11px] sm:text-xs font-black text-[var(--text-secondary)] opacity-70">
+                          VS
+                        </span>
                       </div>
                     </div>
 
@@ -446,15 +496,16 @@ const awayScore =
                     Tu Pronóstico
                   </p>
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[var(--background)] p-3 rounded-2xl border border-[var(--surface-border)] shadow-sm">
-                    
                     <div className="flex justify-center items-center gap-3 w-full sm:w-auto">
                       {/* Control Local */}
                       <div className="flex items-center bg-[var(--surface)] border border-[var(--surface-border)] rounded-xl p-1 focus-within:border-[var(--primary)] focus-within:ring-2 focus-within:ring-[var(--primary)]/20 transition-all shadow-sm">
-                        <button 
+                        <button
                           className="w-8 h-8 rounded-lg text-lg font-medium text-[var(--text-secondary)] hover:bg-[var(--background)] hover:text-[var(--primary)] disabled:opacity-30 transition-colors flex items-center justify-center"
                           onClick={() => adjustScore(match.id, "home", -1)}
                           disabled={closed}
-                        >−</button>
+                        >
+                          −
+                        </button>
                         <input
                           type="text"
                           inputMode="numeric"
@@ -463,24 +514,32 @@ const awayScore =
                           disabled={closed}
                           value={inputs[match.id]?.predicted_home ?? "0"}
                           placeholder="0"
-                          onChange={(e) => handleScoreChange(match.id, "home", e.target.value)}
+                          onChange={(e) =>
+                            handleScoreChange(match.id, "home", e.target.value)
+                          }
                         />
-                        <button 
+                        <button
                           className="w-8 h-8 rounded-lg text-lg font-medium text-[var(--text-secondary)] hover:bg-[var(--background)] hover:text-[var(--primary)] disabled:opacity-30 transition-colors flex items-center justify-center"
                           onClick={() => adjustScore(match.id, "home", 1)}
                           disabled={closed}
-                        >+</button>
+                        >
+                          +
+                        </button>
                       </div>
 
-                      <span className="text-[var(--text-secondary)] font-black text-lg opacity-50">-</span>
+                      <span className="text-[var(--text-secondary)] font-black text-lg opacity-50">
+                        -
+                      </span>
 
                       {/* Control Visitante */}
                       <div className="flex items-center bg-[var(--surface)] border border-[var(--surface-border)] rounded-xl p-1 focus-within:border-[var(--primary)] focus-within:ring-2 focus-within:ring-[var(--primary)]/20 transition-all shadow-sm">
-                        <button 
+                        <button
                           className="w-8 h-8 rounded-lg text-lg font-medium text-[var(--text-secondary)] hover:bg-[var(--background)] hover:text-[var(--primary)] disabled:opacity-30 transition-colors flex items-center justify-center"
                           onClick={() => adjustScore(match.id, "away", -1)}
                           disabled={closed}
-                        >−</button>
+                        >
+                          −
+                        </button>
                         <input
                           type="text"
                           inputMode="numeric"
@@ -489,18 +548,22 @@ const awayScore =
                           disabled={closed}
                           value={inputs[match.id]?.predicted_away ?? "0"}
                           placeholder="0"
-                          onChange={(e) => handleScoreChange(match.id, "away", e.target.value)}
+                          onChange={(e) =>
+                            handleScoreChange(match.id, "away", e.target.value)
+                          }
                         />
-                        <button 
+                        <button
                           className="w-8 h-8 rounded-lg text-lg font-medium text-[var(--text-secondary)] hover:bg-[var(--background)] hover:text-[var(--primary)] disabled:opacity-30 transition-colors flex items-center justify-center"
                           onClick={() => adjustScore(match.id, "away", 1)}
                           disabled={closed}
-                        >+</button>
+                        >
+                          +
+                        </button>
                       </div>
                     </div>
-                    
+
                     <Button
-                      className={`!w-full sm:!w-auto !p-0 px-8 h-12 text-sm font-bold shrink-0 shadow-md hover:shadow-lg transition-all ${closed ? 'opacity-50' : ''}`}
+                      className={`!w-full sm:!w-auto !p-0 px-8 h-12 text-sm font-bold shrink-0 shadow-md hover:shadow-lg transition-all ${closed ? "opacity-50" : ""}`}
                       disabled={closed || saving === match.id}
                       onClick={() => savePrediction(match.id)}
                     >
@@ -516,7 +579,9 @@ const awayScore =
         {visibleMatches.length === 0 && activeStage && (
           <div className="text-center bg-[var(--surface)] border border-[var(--surface-border)] rounded-2xl py-16 px-4 shadow-sm">
             <span className="text-4xl block mb-4">📅</span>
-            <p className="text-[var(--text-secondary)] font-medium text-lg">No hay partidos programados para esta fase.</p>
+            <p className="text-[var(--text-secondary)] font-medium text-lg">
+              No hay partidos programados para esta fase.
+            </p>
           </div>
         )}
       </div>

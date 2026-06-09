@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import Card from "@/components/ui/Card"; // Ajusta la ruta si es necesario
+import { useRouter } from "next/navigation";
 
 type RankingUser = {
   id: string;
@@ -15,6 +16,7 @@ export default function RankingPage() {
   const [ranking, setRanking] = useState<RankingUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const load = async () => {
@@ -29,9 +31,8 @@ export default function RankingPage() {
         .select("*")
         .order("total_points", { ascending: false });
 
-      if (error) {
-        toast.error("Error cargando ranking");
-        setLoading(false);
+      if (!user) {
+        router.push("/login");
         return;
       }
 

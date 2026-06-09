@@ -51,7 +51,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex justify-center items-center relative overflow-hidden p-4 sm:p-6 bg-animated-gradient">
-      
       {/* Elementos decorativos de fondo */}
       <div className="absolute top-0 right-0 w-[250px] sm:w-[350px] h-[250px] sm:h-[350px] bg-[var(--primary)] opacity-10 rounded-full translate-x-[30%] -translate-y-[30%] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-[var(--accent)] opacity-10 rounded-full -translate-x-[30%] translate-y-[30%] pointer-events-none" />
@@ -95,23 +94,29 @@ export default function LoginPage() {
             autoComplete="current-password"
           />
         </div>
+        <div className="w-full text-center mt-1">
+          <Link
+            href="/forgot-password"
+            className="text-xs text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
 
         <Button onClick={login} disabled={loading} className="mt-8">
           {loading ? "Ingresando..." : "Iniciar Sesión"}
         </Button>
 
         <div className="mt-8 text-center text-sm sm:text-base">
-          <Link href="/register" className="text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors">
-            ¿No tienes cuenta? <span className="text-[var(--primary)] font-semibold">Regístrate aquí</span>
+          <Link
+            href="/register"
+            className="text-[var(--text-secondary)] hover:text-[var(--foreground)] transition-colors"
+          >
+            ¿No tienes cuenta?{" "}
+            <span className="text-[var(--primary)] font-semibold">
+              Regístrate aquí
+            </span>
           </Link>
-          <div className="text-right mt-2">
-  <Link
-    href="/forgot-password"
-    className="text-sm text-[var(--primary)] hover:text-[var(--primary-hover)] transition-colors"
-  >
-    ¿Olvidaste tu contraseña?
-  </Link>
-</div>
         </div>
       </Card>
     </div>

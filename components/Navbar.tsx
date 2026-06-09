@@ -14,13 +14,11 @@ export default function Navbar() {
   const router = useRouter();
 
   useEffect(() => {
-    const loadUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+    // Función centralizada para manejar el estado del usuario
+    const checkUser = async (user: any) => {
       if (!user) {
         setIsLoggedIn(false);
+        setIsAdmin(false);
         return;
       }
 
@@ -35,7 +33,22 @@ export default function Navbar() {
       setIsAdmin(profile?.is_admin || false);
     };
 
-    loadUser();
+    // 1. Verificar sesión actual al montar
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      checkUser(user);
+    });
+
+    // 2. Escuchar cambios de sesión en tiempo real (login/logout)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      checkUser(session?.user);
+    });
+
+    // Limpiar la suscripción cuando el componente se desmonte
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const links = [
@@ -43,34 +56,34 @@ export default function Navbar() {
     { href: "/partidos", label: "Partidos", icon: "🗓️" },
     { href: "/ranking", label: "Ranking", icon: "🏅" },
     { href: "/mis-pronosticos", label: "Mis Pronósticos", icon: "📝" },
-    {href: "/reglas", label: "Reglas", icon: "📜"},
+    { href: "/reglas", label: "Reglas", icon: "📜" },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: "⚙️" }] : []),
   ];
 
   const logout = async () => {
     await supabase.auth.signOut();
-    router.push("/login"); // ✅ Cambiado para navegación SPA fluida
+    router.push("/login");
   };
 
   return (
     <nav className="w-full relative z-50 font-sans">
-      {/* Barra superior con gradiente animado reutilizando la utilidad global */}
+      {/* Barra superior con gradiente animado */}
       <div className="h-[5px] w-full bg-animated-gradient" />
 
       {/* Navbar principal */}
       <div className="flex justify-between items-center px-4 py-3 sm:px-8 bg-[var(--surface)] border-b border-[var(--surface-border)] shadow-md">
         
         {/* Marca / Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+        <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0">
           <span className="text-2xl">🏆</span>
           <span className="text-xl font-bold text-[var(--primary)]">
             Polla <span className="text-[var(--accent)]">Mundial</span>
           </span>
         </Link>
 
-        {/* Links Desktop */}
-        <div className="hidden md:flex items-center gap-6">
-          <ul className="flex items-center gap-2">
+        {/* Links Desktop - Cambiado de md:flex a lg:flex para evitar desbordamientos */}
+        <div className="hidden lg:flex items-center gap-4 xl:gap-6">
+          <ul className="flex items-center gap-1 xl:gap-2">
             {links.map((link) => {
               const isActive = pathname === link.href;
               const isAdminLink = link.href === "/admin";
@@ -80,7 +93,7 @@ export default function Navbar() {
                   <Link
                     href={link.href}
                     className={`
-                      flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-200
+                      flex items-center gap-2 px-3 xl:px-4 py-2 rounded-xl font-medium transition-all duration-200 whitespace-nowrap
                       ${
                         isActive
                           ? "bg-gradient-to-br from-[var(--primary)] to-[var(--primary-hover)] text-white shadow-md"
@@ -99,12 +112,14 @@ export default function Navbar() {
           </ul>
 
           {/* Divisor vertical */}
-          <div className="w-[1px] h-6 bg-[var(--surface-border)]" />
+          {isLoggedIn && (
+            <div className="w-[1px] h-6 bg-[var(--surface-border)] mx-2" />
+          )}
 
           {isLoggedIn && (
             <button
               onClick={logout}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dark)] text-white font-semibold transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_15px_rgba(178,130,71,0.2)]"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dark)] text-white font-semibold transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_15px_rgba(178,130,71,0.2)] flex-shrink-0"
             >
               <span>↩</span>
               Salir
@@ -112,9 +127,9 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Botón Menú Mobile (Hamburguesa animada) */}
+        {/* Botón Menú Mobile (Hamburguesa animada) - Cambiado a lg:hidden */}
         <button
-          className="md:hidden flex flex-col justify-center items-center gap-1.5 w-10 h-10 p-2 rounded-lg hover:bg-[var(--surface-border)]/50 transition-colors"
+          className="lg:hidden flex flex-col justify-center items-center gap-1.5 w-10 h-10 p-2 rounded-lg hover:bg-[var(--surface-border)]/50 transition-colors flex-shrink-0"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Menú"
         >
@@ -124,10 +139,10 @@ export default function Navbar() {
         </button>
       </div>
 
-      {/* Menú Desplegable Mobile */}
+      {/* Menú Desplegable Mobile - Cambiado a lg:hidden */}
       <div
-        className={`md:hidden absolute top-full left-0 w-full bg-[var(--surface)] border-b border-[var(--surface-border)] shadow-xl transition-all duration-300 overflow-hidden ${
-          menuOpen ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
+        className={`lg:hidden absolute top-full left-0 w-full bg-[var(--surface)] border-b border-[var(--surface-border)] shadow-xl transition-all duration-300 overflow-hidden ${
+          menuOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
         }`}
       >
         <div className="flex flex-col p-4 space-y-2">
