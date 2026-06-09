@@ -125,13 +125,7 @@ export default function DashboardPage() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, is_admin")
-        .eq("id", user.id)
-        .single();
-
-      const { data: ranking } = await supabase
-        .from("ranking_positions")
-        .select("*")
+        .select("full_name, is_admin, points, ranking")
         .eq("id", user.id)
         .single();
 
@@ -156,8 +150,8 @@ export default function DashboardPage() {
 
       setData({
         fullName: profile?.full_name || user.email || "Usuario",
-        points: ranking?.total_points || 0,
-        position: ranking?.position || 0,
+        points: profile?.points || 0,
+        position: profile?.ranking || 0,
         predictions: predictionsCount || 0,
         totalMatches: matchesCount || 0,
         isAdmin: profile?.is_admin || false,
@@ -223,7 +217,9 @@ export default function DashboardPage() {
           position={data.position}
           points={data.points}
           emoji={posLabel?.emoji || "🏅"}
+          
         />
+        
 
         {/* STATS SECTION */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">

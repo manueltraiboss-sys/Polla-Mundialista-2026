@@ -20,10 +20,7 @@ export default function HeroCard({
           </p>
 
           <h1 className="text-4xl font-bold text-primary mt-2">
-            Hola,{" "}
-            <span className="text-accent">
-              {fullName.split(" ")[0]}
-            </span>{" "}
+            Hola, <span className="text-accent">{fullName.split(" ")[0]}</span>{" "}
             👋
           </h1>
 
@@ -38,6 +35,16 @@ export default function HeroCard({
               Estás en la posición #{position} con {points} pts
             </span>
           </div>
+          {/* RECORDATORIO DE APORTE */}
+
+          <p>
+            <span className="text-xl">💰</span>
+            <span className="font-semibold text-[var(--accent)]">
+              Recuerda:
+            </span>{" "}
+            para participar en esta actividad debes aportar{" "}
+            <span className="font-semibold">$1</span>.
+          </p>
         </div>
 
         <div className="w-[220px] flex justify-center">

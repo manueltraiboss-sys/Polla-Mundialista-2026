@@ -9,7 +9,8 @@ import { useRouter } from "next/navigation";
 type RankingUser = {
   id: string;
   full_name: string | null;
-  total_points: number;
+  points: number;
+  ranking: number;
 };
 
 export default function RankingPage() {
@@ -27,9 +28,10 @@ export default function RankingPage() {
       setCurrentUserId(user?.id ?? null);
 
       const { data, error } = await supabase
-        .from("ranking_view")
-        .select("*")
-        .order("total_points", { ascending: false });
+        .from("profiles")
+        .select("id, full_name, points, ranking")
+        .order("ranking", { ascending: true })
+        .limit(10);
 
       if (!user) {
         router.push("/login");
@@ -44,7 +46,7 @@ export default function RankingPage() {
   }, []);
 
   const podium = ranking.slice(0, 3);
-  const maxPts = ranking[0]?.total_points || 1;
+  const maxPts = ranking[0]?.points || 1;
 
   // Orden para mostrar el podio: 2do, 1ro, 3ro
   const podiumOrder = [1, 0, 2];
@@ -74,6 +76,14 @@ export default function RankingPage() {
           <h1 className="text-4xl md:text-5xl font-bold text-[var(--primary)]">
             Ranking <span className="text-[var(--accent)]">General</span>
           </h1>
+          <p className="mt-3 text-xs text-[var(--text-secondary)] flex items-center justify-center gap-1.5">
+            <span>🕐</span>
+            <span>
+              El ranking se actualiza automáticamente todos los días a las{" "}
+              <span className="font-semibold text-[var(--foreground)]">7:00 AM</span> y{" "}
+              <span className="font-semibold text-[var(--foreground)]">7:00 PM</span>
+            </span>
+          </p>
         </Card>
 
         {ranking.length === 0 ? (
@@ -125,7 +135,7 @@ export default function RankingPage() {
                       </div>
 
                       <div className="text-[var(--accent)] font-bold text-sm md:text-base">
-                        {user.total_points} pts
+                        {user.points} pts
                       </div>
 
                       <div className="text-3xl md:text-4xl mt-1 drop-shadow-md">
@@ -167,7 +177,7 @@ export default function RankingPage() {
                         .slice(0, 2)
                         .toUpperCase();
 
-                      const pct = Math.round((user.total_points / maxPts) * 100);
+                      const pct = Math.round((user.points / maxPts) * 100);
 
                       return (
                         <tr
@@ -215,7 +225,7 @@ export default function RankingPage() {
 
                           {/* Puntos */}
                           <td className="px-6 py-4 font-bold text-[var(--accent)] text-right">
-                            {user.total_points} pts
+                            {user.points} pts
                           </td>
                         </tr>
                       );
