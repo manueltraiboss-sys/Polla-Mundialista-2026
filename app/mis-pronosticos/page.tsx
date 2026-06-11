@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -91,6 +92,13 @@ setUserName(
     const predictionData = (data as unknown as Prediction[]) || [];
     setPredictions(predictionData);
 
+      predictionData.sort((a, b) => {
+  const dateA = new Date(a.matches?.match_date || 0).getTime();
+  const dateB = new Date(b.matches?.match_date || 0).getTime();
+  return dateA - dateB;
+});
+
+
     const total = predictionData.reduce((sum, item) => sum + (item.points || 0), 0);
     setTotalPoints(total);
     setTotalPredictions(predictionData.length);
@@ -132,6 +140,11 @@ setUserName(
 
   const rows = predictions.map((prediction) => [
     `${prediction.matches?.home_team} vs ${prediction.matches?.away_team}`,
+    prediction.matches?.match_date ? new Date(prediction.matches.match_date).toLocaleDateString("es-EC", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }) : "Fecha no disponible",
     `${prediction.predicted_home} - ${prediction.predicted_away}`,
     prediction.matches?.finished
       ? `${prediction.matches?.home_score} - ${prediction.matches?.away_score}`
@@ -141,7 +154,7 @@ setUserName(
 
   autoTable(doc, {
     startY: 65,
-    head: [["Partido", "Mi Pronóstico", "Resultado Oficial", "Puntos"]],
+    head: [["Partido", "Fecha", "Mi Pronóstico", "Resultado Oficial", "Puntos"]],
     body: rows,
 
     headStyles: {
@@ -258,6 +271,7 @@ setUserName(
               <thead>
                 <tr className="bg-[var(--primary)]/5 border-b border-[var(--surface-border)] text-[var(--text-secondary)]">
                   <th className="px-6 py-4 font-bold">Partido</th>
+                  <th className="px-6 py-4 font-bold text-center">Fecha</th>
                   <th className="px-6 py-4 font-bold text-center">Mi Pronóstico</th>
                   <th className="px-6 py-4 font-bold text-center">Resultado Oficial</th>
                   <th className="px-6 py-4 font-bold text-center">Puntos</th>
@@ -276,6 +290,17 @@ setUserName(
                       <div className="text-xs text-[var(--text-secondary)] mt-1 font-medium uppercase tracking-wider">
                         {prediction.matches?.stage}
                       </div>
+                    </td>
+
+                     {/* Fecha */}
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-block bg-[var(--surface-border)]/50 px-3 py-1 rounded-lg font-bold text-[var(--foreground)] tracking-widest">
+                        {prediction.matches?.match_date ? new Date(prediction.matches.match_date).toLocaleDateString("es-EC", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric"
+                        }) : "Fecha no disponible"}
+                      </span>
                     </td>
 
                     {/* Mi Pronóstico */}

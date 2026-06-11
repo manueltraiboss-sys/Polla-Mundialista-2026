@@ -15,6 +15,7 @@ export default function Navbar() {
 
   useEffect(() => {
     // Función centralizada para manejar el estado del usuario
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const checkUser = async (user: any) => {
       if (!user) {
         setIsLoggedIn(false);
@@ -57,6 +58,12 @@ export default function Navbar() {
     { href: "/ranking", label: "Ranking", icon: "🏅" },
     { href: "/mis-pronosticos", label: "Mis Pronósticos", icon: "📝" },
     { href: "/reglas", label: "Reglas", icon: "📜" },
+    {
+      href: "https://www.fifa.com/es/tournaments/mens/worldcup/canadamexicousa2026/standings",
+      label: "Ver Tabla",
+      icon: "📊",
+      external: true,
+    },
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: "⚙️" }] : []),
   ];
 
@@ -72,9 +79,11 @@ export default function Navbar() {
 
       {/* Navbar principal */}
       <div className="flex justify-between items-center px-4 py-3 sm:px-8 bg-[var(--surface)] border-b border-[var(--surface-border)] shadow-md">
-        
         {/* Marca / Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
+        >
           <span className="text-2xl">🏆</span>
           <span className="text-xl font-bold text-[var(--primary)]">
             Polla <span className="text-[var(--accent)]">Mundial</span>
@@ -92,16 +101,18 @@ export default function Navbar() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
+                    target={link.external ? "_blank" : undefined}
+                    rel={link.external ? "noopener noreferrer" : undefined}
                     className={`
-                      flex items-center gap-2 px-3 xl:px-4 py-2 rounded-xl font-medium transition-all duration-200 whitespace-nowrap
-                      ${
-                        isActive
-                          ? "bg-gradient-to-br from-[var(--primary)] to-[var(--primary-hover)] text-white shadow-md"
-                          : isAdminLink
-                          ? "text-[var(--accent)] hover:bg-[var(--accent)]/10"
-                          : "text-[var(--text-secondary)] hover:bg-[var(--primary)]/10 hover:text-[var(--primary)]"
-                      }
-                    `}
+    flex items-center gap-2 px-3 xl:px-4 py-2 rounded-xl font-medium transition-all duration-200 whitespace-nowrap
+    ${
+      isActive
+        ? "bg-gradient-to-br from-[var(--primary)] to-[var(--primary-hover)] text-white shadow-md"
+        : isAdminLink
+          ? "text-[var(--accent)] hover:bg-[var(--accent)]/10"
+          : "text-[var(--text-secondary)] hover:bg-[var(--primary)]/10 hover:text-[var(--primary)]"
+    }
+  `}
                   >
                     <span>{link.icon}</span>
                     {link.label}
@@ -133,9 +144,15 @@ export default function Navbar() {
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Menú"
         >
-          <span className={`w-6 h-[3px] bg-[var(--primary)] rounded-full transition-transform duration-300 origin-center ${menuOpen ? "rotate-45 translate-y-[9px]" : ""}`} />
-          <span className={`w-6 h-[3px] bg-[var(--primary)] rounded-full transition-opacity duration-300 ${menuOpen ? "opacity-0" : ""}`} />
-          <span className={`w-6 h-[3px] bg-[var(--primary)] rounded-full transition-transform duration-300 origin-center ${menuOpen ? "-rotate-45 -translate-y-[9px]" : ""}`} />
+          <span
+            className={`w-6 h-[3px] bg-[var(--primary)] rounded-full transition-transform duration-300 origin-center ${menuOpen ? "rotate-45 translate-y-[9px]" : ""}`}
+          />
+          <span
+            className={`w-6 h-[3px] bg-[var(--primary)] rounded-full transition-opacity duration-300 ${menuOpen ? "opacity-0" : ""}`}
+          />
+          <span
+            className={`w-6 h-[3px] bg-[var(--primary)] rounded-full transition-transform duration-300 origin-center ${menuOpen ? "-rotate-45 -translate-y-[9px]" : ""}`}
+          />
         </button>
       </div>
 
@@ -148,7 +165,7 @@ export default function Navbar() {
         <div className="flex flex-col p-4 space-y-2">
           {links.map((link) => {
             const isActive = pathname === link.href;
-            
+
             return (
               <Link
                 key={link.href}

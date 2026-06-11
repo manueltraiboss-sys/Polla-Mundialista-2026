@@ -9,6 +9,7 @@ import HeroCard from "@/components/dashboard/HeroCard";
 import StatCard from "@/components/dashboard/StatCard";
 import MatchCard from "@/components/dashboard/MatchCard";
 import QuickLinkCard from "@/components/dashboard/QuickLinkCard";
+import IframeCard from "@/components/dashboard/IframeCard";
 
 type DashboardData = {
   fullName: string;
@@ -16,6 +17,7 @@ type DashboardData = {
   position: number;
   predictions: number;
   totalMatches: number;
+  totalUsers: number;
   isAdmin: boolean;
 };
 
@@ -61,7 +63,7 @@ const getCountryCode = (teamName: string): string => {
     "República Checa": "cz",
     "Bosnia y Herzegovina": "ba",
     "Suiza": "ch",
-    "Escocia": "gb-sct", // Código especial en FlagCDN
+    "Escocia": "gb-sct",
     "Turquía": "tr",
     "Suecia": "se",
     "Noruega": "no",
@@ -94,7 +96,6 @@ const getCountryCode = (teamName: string): string => {
     "Nueva Zelanda": "nz",
   };
 
-  // Normalizamos espacios y buscamos. Si no existe, usamos "un" (ONU) como fallback.
   return codes[teamName.trim()] || "un"; 
 };
 
@@ -119,7 +120,7 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        router.push("/login"); // Refactorizado a router.push para SPA
+        router.push("/login");
         return;
       }
 
@@ -138,10 +139,17 @@ export default function DashboardPage() {
         .from("matches")
         .select("*", { count: "exact", head: true });
 
+      const { count: usersCount } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true });
+
+      // Mostrar el partido que comienza en los próximos 60 minutos o el siguiente en el futuro
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
       const { data: upcomingMatch } = await supabase
         .from("matches")
         .select("home_team, away_team, match_date")
-        .gte("match_date", new Date().toISOString())
+        .gte("match_date", oneHourAgo)
         .order("match_date")
         .limit(1)
         .single();
@@ -154,6 +162,7 @@ export default function DashboardPage() {
         position: profile?.ranking || 0,
         predictions: predictionsCount || 0,
         totalMatches: matchesCount || 0,
+        totalUsers: usersCount || 0,
         isAdmin: profile?.is_admin || false,
       });
     }
@@ -193,7 +202,6 @@ export default function DashboardPage() {
 
   const posLabel = data ? getPositionLabel(data.position) : null;
 
-  // Estado de carga refactorizado con Tailwind
   if (!data) {
     return (
       <div className="min-h-screen flex justify-center items-center bg-animated-gradient">
@@ -205,7 +213,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen relative overflow-hidden p-4 sm:p-6 md:p-8 bg-animated-gradient">
       
-      {/* Elementos decorativos consistentes con el diseño de Login y Register */}
+      {/* Elementos decorativos */}
       <div className="absolute top-0 right-0 w-[250px] sm:w-[350px] h-[250px] sm:h-[350px] bg-[var(--primary)] opacity-10 rounded-full translate-x-[30%] -translate-y-[30%] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-[var(--accent)] opacity-10 rounded-full -translate-x-[30%] translate-y-[30%] pointer-events-none" />
 
@@ -217,16 +225,14 @@ export default function DashboardPage() {
           position={data.position}
           points={data.points}
           emoji={posLabel?.emoji || "🏅"}
-          
         />
-        
 
         {/* STATS SECTION */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <StatCard
             label="Posición"
-            value={`#${data.position}`}
-            sub={posLabel?.emoji || ""}
+            value={`${data.position}/${data.totalUsers} ${posLabel?.emoji || ""}`}
+            sub={`participantes`}
           />
           <StatCard
             label="Puntos"
@@ -249,12 +255,12 @@ export default function DashboardPage() {
         {/* MATCH SECTION */}
         {nextMatch && (
           <MatchCard
-  homeTeam={nextMatch.home_team}
-  awayTeam={nextMatch.away_team}
-  matchDate={nextMatch.match_date}
-  countdown={countdown}
-  getFlagUrl={getFlagUrl}
-/>
+            homeTeam={nextMatch.home_team}
+            awayTeam={nextMatch.away_team}
+            matchDate={nextMatch.match_date}
+            countdown={countdown}
+            getFlagUrl={getFlagUrl}
+          />
         )}
 
         {/* QUICK LINKS SECTION */}

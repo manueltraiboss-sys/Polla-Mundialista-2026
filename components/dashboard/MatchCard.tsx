@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 type MatchCardProps = {
   homeTeam: string;
@@ -6,6 +7,7 @@ type MatchCardProps = {
   matchDate: string;
   countdown: string;
   getFlagUrl: (team: string) => string;
+  href?: string;
 };
 
 export default function MatchCard({
@@ -14,6 +16,7 @@ export default function MatchCard({
   matchDate,
   countdown,
   getFlagUrl,
+  href = "/partidos",
 }: MatchCardProps) {
   return (
     <div className="bg-[var(--surface)] border border-[var(--surface-border)] rounded-3xl p-6 md:p-8 shadow-xl">
@@ -81,6 +84,16 @@ export default function MatchCard({
           </div>
         </div>
 
+      </div>
+
+      {/* CTA */}
+      <div className="flex justify-center mt-6">
+        <Link
+          href={href}
+          className="inline-flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white text-sm font-semibold px-6 py-2.5 rounded-full transition-colors shadow-md"
+        >
+          Ir a pronosticar →
+        </Link>
       </div>
     </div>
   );

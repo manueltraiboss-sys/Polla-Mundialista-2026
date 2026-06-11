@@ -117,10 +117,16 @@ export default function PartidosPage() {
   );
   const [saving, setSaving] = useState<number | null>(null);
   const [activeStage, setActiveStage] = useState<string | null>(null);
+  // null = sin filtro de fecha; string "YYYY-MM-DD" = fecha seleccionada
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+
+  const dateScrollRef = useRef<HTMLDivElement>(null);
+  const [canDateScrollLeft, setCanDateScrollLeft] = useState(false);
+  const [canDateScrollRight, setCanDateScrollRight] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -168,6 +174,21 @@ export default function PartidosPage() {
     }
   }
 
+  const checkDateScroll = () => {
+    if (dateScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = dateScrollRef.current;
+      setCanDateScrollLeft(scrollLeft > 0);
+      setCanDateScrollRight(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
+    }
+  };
+
+  const scrollDate = (direction: "left" | "right") => {
+    if (dateScrollRef.current) {
+      const shift = direction === "left" ? -250 : 250;
+      dateScrollRef.current.scrollBy({ left: shift, behavior: "smooth" });
+    }
+  };
+
   const checkScroll = () => {
     if (scrollRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
@@ -175,6 +196,12 @@ export default function PartidosPage() {
       setCanScrollRight(Math.ceil(scrollLeft + clientWidth) < scrollWidth);
     }
   };
+
+  useEffect(() => {
+    checkDateScroll();
+    window.addEventListener("resize", checkDateScroll);
+    return () => window.removeEventListener("resize", checkDateScroll);
+  }, [matches]);
 
   useEffect(() => {
     checkScroll();
@@ -284,7 +311,41 @@ export default function PartidosPage() {
     {} as Record<string, Match[]>,
   );
 
-  const visibleMatches = activeStage ? groupedMatches[activeStage] || [] : [];
+  // Zona horaria Ecuador
+  const TZ = "America/Guayaquil";
+
+  const toDateStr = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
+
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+
+  // Todas las fechas únicas con partidos, ordenadas ascendente
+  const allMatchDates = [
+    ...new Set(matches.map((m) => toDateStr(m.match_date))),
+  ].sort();
+
+  // Stages que tienen al menos un partido en la fecha seleccionada
+  const stagesForDate = selectedDate
+    ? new Set(
+        matches
+          .filter((m) => toDateStr(m.match_date) === selectedDate)
+          .map((m) => m.stage),
+      )
+    : null;
+
+  const allStages = Object.keys(groupedMatches).sort((a, b) =>
+    a.localeCompare(b),
+  );
+
+  const visibleStages =
+    stagesForDate ? allStages.filter((s) => stagesForDate.has(s)) : allStages;
+
+  // Partidos visibles: si hay fecha activa, sólo los de esa fecha dentro del stage
+  const visibleMatches = activeStage
+    ? (groupedMatches[activeStage] || []).filter((m) =>
+        selectedDate ? toDateStr(m.match_date) === selectedDate : true,
+      )
+    : [];
 
   return (
     <div className="min-h-screen relative overflow-hidden p-4 sm:p-6 md:p-8 bg-animated-gradient pb-24">
@@ -302,7 +363,149 @@ export default function PartidosPage() {
         </Card>
 
         {/* CONTROLES DE NAVEGACIÓN Y FASES */}
-        <div className="flex items-center gap-2 relative">
+        <div className="flex flex-col gap-3">
+          {/* ── Selector de fechas ── */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                Filtrar por fecha
+              </p>
+              {selectedDate && (
+                <button
+                  onClick={() => {
+                    setSelectedDate(null);
+                    // restaurar primer stage general
+                    if (allStages.length > 0) setActiveStage(allStages[0]);
+                  }}
+                  className="text-xs text-[var(--text-secondary)] hover:underline font-semibold"
+                >
+                  Limpiar filtro ✕
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 relative">
+              <button
+                onClick={() => scrollDate("left")}
+                disabled={!canDateScrollLeft}
+                className={`
+                  hidden sm:flex flex-shrink-0 w-10 h-10 rounded-full items-center justify-center
+                  bg-[var(--surface)] border border-[var(--surface-border)] text-[var(--primary)]
+                  transition-all duration-300 z-10 hover:bg-[var(--primary)]/10 shadow-sm
+                  ${!canDateScrollLeft ? "opacity-0 pointer-events-none" : "opacity-100 hover:scale-105"}
+                `}
+                aria-label="Desplazar fechas a la izquierda"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+
+              <div
+                className="relative w-full overflow-hidden"
+                style={{
+                  maskImage: "linear-gradient(to right, transparent, black 15px, black calc(100% - 15px), transparent)",
+                  WebkitMaskImage: "linear-gradient(to right, transparent, black 15px, black calc(100% - 15px), transparent)",
+                }}
+              >
+                <div
+                  ref={dateScrollRef}
+                  onScroll={checkDateScroll}
+                  className="flex gap-2 overflow-x-auto pb-1 px-4 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+                >
+              {allMatchDates.map((dateStr) => {
+                const isToday = dateStr === todayStr;
+                const isSelected = selectedDate === dateStr;
+                const dateObj = new Date(dateStr + "T12:00:00");
+                const label = dateObj.toLocaleDateString("es-EC", {
+                  timeZone: TZ,
+                  weekday: "short",
+                  day: "numeric",
+                  month: "short",
+                });
+                const stagesCount = new Set(
+                  matches
+                    .filter((m) => toDateStr(m.match_date) === dateStr)
+                    .map((m) => m.stage),
+                ).size;
+
+                return (
+                  <button
+                    key={dateStr}
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedDate(null);
+                        if (allStages.length > 0) setActiveStage(allStages[0]);
+                      } else {
+                        setSelectedDate(dateStr);
+                        // auto-seleccionar primer stage de esa fecha
+                        const firstStage = allStages.find((s) =>
+                          matches.some(
+                            (m) =>
+                              m.stage === s && toDateStr(m.match_date) === dateStr,
+                          ),
+                        );
+                        if (firstStage) setActiveStage(firstStage);
+                      }
+                    }}
+                    className={`
+                      relative flex-shrink-0 flex flex-col items-center px-4 py-2.5 rounded-2xl border font-bold text-xs transition-all duration-200
+                      ${
+                        isSelected
+                          ? "bg-gradient-to-b from-[var(--accent)] to-[var(--accent-dark)] text-[var(--foreground)] border-transparent shadow-lg scale-105"
+                          : isToday
+                          ? "bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--primary)] hover:scale-105"
+                          : "bg-[var(--surface)] border-[var(--surface-border)] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:text-[var(--primary)]"
+                      }
+                    `}
+                  >
+                    {isToday && (
+                      <span
+                        className={`absolute -top-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                          isSelected
+                            ? "bg-white/30 text-white"
+                            : "bg-[var(--primary)] text-white"
+                        }`}
+                      >
+                        Hoy
+                      </span>
+                    )}
+                    <span className="capitalize mt-1">{label}</span>
+                    <span
+                      className={`text-[10px] mt-0.5 font-medium ${
+                        isSelected
+                          ? "text-white/70"
+                          : "text-[var(--text-secondary)]"
+                      }`}
+                    >
+                      {stagesCount} {stagesCount === 1 ? "grupo" : "grupos"}
+                    </span>
+                  </button>
+                );
+              })}
+                </div>
+              </div>
+
+              <button
+                onClick={() => scrollDate("right")}
+                disabled={!canDateScrollRight}
+                className={`
+                  hidden sm:flex flex-shrink-0 w-10 h-10 rounded-full items-center justify-center
+                  bg-[var(--surface)] border border-[var(--surface-border)] text-[var(--primary)]
+                  transition-all duration-300 z-10 hover:bg-[var(--primary)]/10 shadow-sm
+                  ${!canDateScrollRight ? "opacity-0 pointer-events-none" : "opacity-100 hover:scale-105"}
+                `}
+                aria-label="Desplazar fechas a la derecha"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Fases scrollables */}
+          <div className="flex items-center gap-2 relative">
           <button
             onClick={() => scroll("left")}
             disabled={!canScrollLeft}
@@ -342,9 +545,7 @@ export default function PartidosPage() {
               onScroll={checkScroll}
               className="flex gap-3 overflow-x-auto pb-4 pt-2 px-4 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
-              {Object.keys(groupedMatches)
-                .sort((a, b) => a.localeCompare(b))
-                .map((stage) => {
+              {visibleStages.map((stage) => {
                   const isActive = activeStage === stage;
                   return (
                     <button
@@ -390,6 +591,7 @@ export default function PartidosPage() {
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </button>
+        </div>
         </div>
 
         {/* LISTA DE PARTIDOS */}
@@ -580,7 +782,9 @@ export default function PartidosPage() {
           <div className="text-center bg-[var(--surface)] border border-[var(--surface-border)] rounded-2xl py-16 px-4 shadow-sm">
             <span className="text-4xl block mb-4">📅</span>
             <p className="text-[var(--text-secondary)] font-medium text-lg">
-              No hay partidos programados para esta fase.
+              {selectedDate
+                ? "No hay partidos para esta fase en la fecha seleccionada."
+                : "No hay partidos programados para esta fase."}
             </p>
           </div>
         )}
