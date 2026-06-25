@@ -1,12 +1,14 @@
 "use client";
 
+
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+
 
 type Match = {
   id: number;
@@ -19,6 +21,7 @@ type Match = {
   finished: boolean;
 };
 
+
 type Prediction = {
   match_id: number;
   predicted_home: number;
@@ -26,9 +29,11 @@ type Prediction = {
   points: number;
 };
 
+
 type PredictionInputs = {
   [key: number]: { predicted_home: string; predicted_away: string };
 };
+
 
 // Helper: Mapeo de selecciones a códigos ISO para FlagCDN
 const getCountryCode = (teamName: string): string => {
@@ -45,6 +50,7 @@ const getCountryCode = (teamName: string): string => {
     Paraguay: "py",
     Bolivia: "bo",
 
+
     // Norte/Centro América (CONCACAF)
     México: "mx",
     "Estados Unidos": "us",
@@ -53,6 +59,7 @@ const getCountryCode = (teamName: string): string => {
     Panamá: "pa",
     Haití: "ht",
     Curazao: "cw",
+
 
     // Europa (UEFA)
     España: "es",
@@ -73,6 +80,7 @@ const getCountryCode = (teamName: string): string => {
     Noruega: "no",
     Austria: "at",
 
+
     // Asia (AFC)
     Japón: "jp",
     "Corea del Sur": "kr",
@@ -82,6 +90,7 @@ const getCountryCode = (teamName: string): string => {
     Irak: "iq",
     Jordania: "jo",
     Uzbekistán: "uz",
+
 
     // África (CAF)
     Marruecos: "ma",
@@ -95,21 +104,27 @@ const getCountryCode = (teamName: string): string => {
     "RD Congo": "cd",
     Ghana: "gh",
 
+
     // Oceanía (OFC / AFC)
     Australia: "au",
     "Nueva Zelanda": "nz",
   };
 
+
   // Normalizamos espacios y buscamos. Si no existe, usamos "un" (ONU) como fallback.
   return codes[teamName.trim()] || "un";
 };
+
 
 // Helper: Construye la URL de FlagCDN
 const getFlagUrl = (countryCode: string) =>
   `https://flagcdn.com/w80/${countryCode.toLowerCase()}.png`;
 
+
 export default function PartidosPage() {
   const router = useRouter();
+  const searchParams = useSearchParams(); // <-- Nuevo
+  const targetMatchId = searchParams.get("matchId"); // <-- Nuevo
   const [matches, setMatches] = useState<Match[]>([]);
   const [inputs, setInputs] = useState<PredictionInputs>({});
   const [predictions, setPredictions] = useState<Record<number, Prediction>>(
@@ -117,20 +132,43 @@ export default function PartidosPage() {
   );
   const [saving, setSaving] = useState<number | null>(null);
   const [activeStage, setActiveStage] = useState<string | null>(null);
+
+  // NUEVO ESTADO PARA EL MODAL DE REGLAS
+  const [showRulesModal, setShowRulesModal] = useState(false);
+
   // null = sin filtro de fecha; string "YYYY-MM-DD" = fecha seleccionada
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
 
+
   const dateScrollRef = useRef<HTMLDivElement>(null);
   const [canDateScrollLeft, setCanDateScrollLeft] = useState(false);
   const [canDateScrollRight, setCanDateScrollRight] = useState(true);
 
+
+  // 1. NUEVO: Referencia para evitar que el scroll automático ocurra más de una vez
+  const initialScrollDone = useRef(false);
+
+
+  // Zona horaria Ecuador
+  const TZ = "America/Guayaquil";
+
+
+  const toDateStr = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
+
+
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+
+
   useEffect(() => {
     loadData();
   }, []);
+
 
   async function loadData() {
     const {
@@ -141,18 +179,22 @@ export default function PartidosPage() {
       return;
     }
 
+
     const { data: matchesData } = await supabase
       .from("matches")
       .select("*")
       .order("match_date");
+
 
     const { data: predictionsData } = await supabase
       .from("predictions")
       .select("*")
       .eq("user_id", user.id);
 
+
     const predictionMap: PredictionInputs = {};
     const predictionsDataMap: Record<number, Prediction> = {};
+
 
     predictionsData?.forEach((p) => {
       predictionMap[p.match_id] = {
@@ -162,17 +204,56 @@ export default function PartidosPage() {
       predictionsDataMap[p.match_id] = p;
     });
 
+
     setInputs(predictionMap);
     setPredictions(predictionsDataMap);
-    setMatches(matchesData || []);
 
-    const stages = [...new Set((matchesData || []).map((m) => m.stage))].sort(
-      (a, b) => a.localeCompare(b),
-    );
-    if (stages.length > 0 && !activeStage) {
-      setActiveStage(stages[0]);
+    // ... código anterior de loadData (setInputs, setPredictions, setMatches) ...
+    const allMatches = matchesData || [];
+    setMatches(allMatches);
+
+    // 2. NUEVA LÓGICA DE AUTO-SELECCIÓN (Mejorada con parámetros de URL)
+    
+    // CASO A: Venimos desde el Dashboard con un partido específico a pronosticar
+    if (targetMatchId) {
+      const match = allMatches.find((m) => m.id === Number(targetMatchId));
+      
+      if (match) {
+        setSelectedDate(toDateStr(match.match_date));
+        setActiveStage(match.stage);
+
+        // Desplazamiento automático hacia la tarjeta del partido con ligero retraso
+        // para permitir que React renderice la nueva fecha/fase primero.
+        setTimeout(() => {
+          const cardElement = document.getElementById(`match-${match.id}`);
+          if (cardElement) {
+            cardElement.scrollIntoView({ behavior: "smooth", block: "center" });
+            
+            // Efecto visual para destacar la tarjeta por 2 segundos
+            cardElement.classList.add("ring-4", "ring-[var(--primary)]", "ring-offset-4", "ring-offset-[var(--background)]");
+            setTimeout(() => {
+              cardElement.classList.remove("ring-4", "ring-[var(--primary)]", "ring-offset-4", "ring-offset-[var(--background)]");
+            }, 2000);
+          }
+        }, 500); 
+        return; // Salimos temprano para no ejecutar la validación de "Hoy"
+      }
     }
-  }
+
+    // CASO B: Flujo normal al entrar a /partidos (Comportamiento actual)
+    const matchesToday = allMatches.filter((m) => toDateStr(m.match_date) === todayStr);
+
+    if (matchesToday.length > 0 && !selectedDate) {
+      setSelectedDate(todayStr);
+      const todayStages = [...new Set(matchesToday.map((m) => m.stage))].sort((a, b) => a.localeCompare(b));
+      if (todayStages.length > 0) setActiveStage(todayStages[0]);
+    } else {
+      const allStages = [...new Set(allMatches.map((m) => m.stage))].sort((a, b) => a.localeCompare(b));
+      if (allStages.length > 0 && !activeStage) setActiveStage(allStages[0]);
+    }
+  } // fin de loadData
+ 
+
 
   const checkDateScroll = () => {
     if (dateScrollRef.current) {
@@ -182,12 +263,14 @@ export default function PartidosPage() {
     }
   };
 
+
   const scrollDate = (direction: "left" | "right") => {
     if (dateScrollRef.current) {
       const shift = direction === "left" ? -250 : 250;
       dateScrollRef.current.scrollBy({ left: shift, behavior: "smooth" });
     }
   };
+
 
   const checkScroll = () => {
     if (scrollRef.current) {
@@ -197,17 +280,45 @@ export default function PartidosPage() {
     }
   };
 
+
   useEffect(() => {
     checkDateScroll();
     window.addEventListener("resize", checkDateScroll);
     return () => window.removeEventListener("resize", checkDateScroll);
   }, [matches]);
 
+
   useEffect(() => {
     checkScroll();
     window.addEventListener("resize", checkScroll);
     return () => window.removeEventListener("resize", checkScroll);
   }, [matches, activeStage]);
+
+
+  // 2. NUEVO: Efecto para centrar el slider en la fecha actual al cargar la app
+  useEffect(() => {
+    // Si hay una fecha seleccionada, la referencia del contenedor existe y no hemos hecho el scroll inicial...
+    if (selectedDate && dateScrollRef.current && !initialScrollDone.current) {
+      // Buscamos el botón correspondiente a esa fecha
+      const targetButton = dateScrollRef.current.querySelector(
+        `[data-date="${selectedDate}"]`
+      );
+
+
+      if (targetButton) {
+        // Un ligero timeout permite que React termine de pintar y calcular los anchos del DOM
+        setTimeout(() => {
+          targetButton.scrollIntoView({
+            behavior: "smooth", // Desplazamiento suave
+            block: "nearest",   // No afecta el scroll vertical general de la página
+            inline: "center",   // Centra el botón horizontalmente en el slider
+          });
+          initialScrollDone.current = true; // Marcamos la acción como completada
+        }, 100);
+      }
+    }
+  }, [selectedDate]);
+
 
   const scroll = (direction: "left" | "right") => {
     if (scrollRef.current) {
@@ -216,7 +327,9 @@ export default function PartidosPage() {
     }
   };
 
+
   const isMatchClosed = (date: string) => new Date() >= new Date(date);
+
 
   const handleScoreChange = (
     matchId: number,
@@ -234,6 +347,7 @@ export default function PartidosPage() {
     }));
   };
 
+
   const adjustScore = (
     matchId: number,
     team: "home" | "away",
@@ -244,6 +358,7 @@ export default function PartidosPage() {
       const currentVal = prev[matchId]?.[field] ?? "0";
       const num = parseInt(currentVal, 10) || 0;
       const nextVal = Math.max(0, num + delta);
+
 
       return {
         ...prev,
@@ -256,51 +371,80 @@ export default function PartidosPage() {
     });
   };
 
-  const savePrediction = async (matchId: number) => {
-  const match = matches.find((m) => m.id === matchId);
-  if (match && isMatchClosed(match.match_date))
-    return toast.error("El partido ya inició.");
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+const savePrediction = async (matchId: number) => {
+    const match = matches.find((m) => m.id === matchId);
+    if (match && isMatchClosed(match.match_date))
+      return toast.error("El partido ya inició.");
 
-  // Obtenemos el pronóstico, usando "0" como fallback si no se ha tocado
-  const prediction = inputs[matchId];
-  const homeVal = prediction?.predicted_home ?? "0";
-  const awayVal = prediction?.predicted_away ?? "0";
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-  // Validación estricta: solo falla si el input está literalmente vacío
-  if (homeVal === "" || awayVal === "") {
-    return toast.error("Ingrese ambos marcadores. No pueden estar vacíos.");
-  }
+    // Obtenemos el pronóstico, usando "0" como fallback si no se ha tocado
+    const prediction = inputs[matchId];
+    const homeVal = prediction?.predicted_home ?? "0";
+    const awayVal = prediction?.predicted_away ?? "0";
 
-  // Convertimos a número de forma segura
-  const homeScore = Number(homeVal);
-  const awayScore = Number(awayVal);
+    // Validación estricta: solo falla si el input está literalmente vacío
+    if (homeVal === "" || awayVal === "") {
+      return toast.error("Ingrese ambos marcadores. No pueden estar vacíos.");
+    }
 
-  setSaving(matchId);
+    // Convertimos a número de forma segura
+    const homeScore = Number(homeVal);
+    const awayScore = Number(awayVal);
 
-  const { error } = await supabase
-    .from("predictions")
-    .upsert(
-      {
-        user_id: user.id,
-        match_id: matchId,
-        predicted_home: homeScore,
-        predicted_away: awayScore,
-      },
-      {
-        onConflict: "user_id,match_id",
+    // 👇 NUEVA VALIDACIÓN: Cero empates en eliminatorias 👇
+    const knockoutStages = [
+      "Dieciseisavos de Final",
+      "Octavos de Final",
+      "Cuartos de Final",
+      "Semifinales",
+      "Tercer Puesto",
+      "Final"
+    ];
+
+    if (match && knockoutStages.includes(match.stage)) {
+      if (homeScore === awayScore) {
+        toast.error("En rondas eliminatorias no hay empates. Modifica tu pronóstico para indicar un ganador.");
+        // Activar el modal
+        setShowRulesModal(true);
+        return;
       }
-    );
+    }
+    // 👆 FIN DE NUEVA VALIDACIÓN 👆
 
-  setSaving(null);
+    if (match && knockoutStages.includes(match.stage)) {
+      if (homeScore === awayScore) {
+        return toast.error("En rondas eliminatorias no hay empates. Modifica tu pronóstico para indicar un ganador.");
+      }
+    }
+    // 👆 FIN DE NUEVA VALIDACIÓN 👆
 
-  if (error) return toast.error(error.message);
+    setSaving(matchId);
 
-  toast.success("Pronóstico guardado ✓");
-  loadData();
-};
+    const { error } = await supabase
+      .from("predictions")
+      .upsert(
+        {
+          user_id: user.id,
+          match_id: matchId,
+          predicted_home: homeScore,
+          predicted_away: awayScore,
+        },
+        {
+          onConflict: "user_id,match_id",
+        }
+      );
+
+    setSaving(null);
+
+    if (error) return toast.error(error.message);
+
+    toast.success("Pronóstico guardado ✓");
+    loadData();
+  };
+
 
   const groupedMatches = matches.reduce(
     (acc, match) => {
@@ -311,18 +455,15 @@ export default function PartidosPage() {
     {} as Record<string, Match[]>,
   );
 
-  // Zona horaria Ecuador
-  const TZ = "America/Guayaquil";
 
-  const toDateStr = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-CA", { timeZone: TZ });
+ 
 
-  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
 
   // Todas las fechas únicas con partidos, ordenadas ascendente
   const allMatchDates = [
     ...new Set(matches.map((m) => toDateStr(m.match_date))),
   ].sort();
+
 
   // Stages que tienen al menos un partido en la fecha seleccionada
   const stagesForDate = selectedDate
@@ -333,12 +474,15 @@ export default function PartidosPage() {
       )
     : null;
 
+
   const allStages = Object.keys(groupedMatches).sort((a, b) =>
     a.localeCompare(b),
   );
 
+
   const visibleStages =
     stagesForDate ? allStages.filter((s) => stagesForDate.has(s)) : allStages;
+
 
   // Partidos visibles: si hay fecha activa, sólo los de esa fecha dentro del stage
   const visibleMatches = activeStage
@@ -347,10 +491,12 @@ export default function PartidosPage() {
       )
     : [];
 
+
   return (
     <div className="min-h-screen relative overflow-hidden p-4 sm:p-6 md:p-8 bg-animated-gradient pb-24">
       <div className="absolute top-0 right-0 w-[250px] sm:w-[350px] h-[250px] sm:h-[350px] bg-[var(--primary)] opacity-10 rounded-full translate-x-[30%] -translate-y-[30%] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-[200px] sm:w-[300px] h-[200px] sm:h-[300px] bg-[var(--accent)] opacity-10 rounded-full -translate-x-[30%] translate-y-[30%] pointer-events-none" />
+
 
       <div className="max-w-5xl mx-auto relative z-10 space-y-6 md:space-y-8">
         <Card className="text-center p-6 md:p-10 border border-[var(--surface-border)] shadow-sm">
@@ -361,6 +507,7 @@ export default function PartidosPage() {
             <span className="text-[var(--accent)]">Pronósticos</span>
           </h1>
         </Card>
+
 
         {/* CONTROLES DE NAVEGACIÓN Y FASES */}
         <div className="flex flex-col gap-3">
@@ -384,6 +531,7 @@ export default function PartidosPage() {
               )}
             </div>
 
+
             <div className="flex items-center gap-2 relative">
               <button
                 onClick={() => scrollDate("left")}
@@ -400,6 +548,7 @@ export default function PartidosPage() {
                   <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
               </button>
+
 
               <div
                 className="relative w-full overflow-hidden"
@@ -423,15 +572,18 @@ export default function PartidosPage() {
                   day: "numeric",
                   month: "short",
                 });
-                const stagesCount = new Set(
+                const matchesCount = new Set(
                   matches
                     .filter((m) => toDateStr(m.match_date) === dateStr)
                     .map((m) => m.stage),
                 ).size;
 
+
                 return (
                   <button
                     key={dateStr}
+                    // 3. NUEVO: Atributo para que el querySelector pueda encontrarlo
+      data-date={dateStr}
                     onClick={() => {
                       if (isSelected) {
                         setSelectedDate(null);
@@ -478,13 +630,14 @@ export default function PartidosPage() {
                           : "text-[var(--text-secondary)]"
                       }`}
                     >
-                      {stagesCount} {stagesCount === 1 ? "grupo" : "grupos"}
+                      {matchesCount} {matchesCount === 1 ? "grupo" : "grupos"}
                     </span>
                   </button>
                 );
               })}
                 </div>
               </div>
+
 
               <button
                 onClick={() => scrollDate("right")}
@@ -503,6 +656,7 @@ export default function PartidosPage() {
               </button>
             </div>
           </div>
+
 
           {/* Fases scrollables */}
           <div className="flex items-center gap-2 relative">
@@ -530,6 +684,7 @@ export default function PartidosPage() {
               <polyline points="15 18 9 12 15 6"></polyline>
             </svg>
           </button>
+
 
           <div
             className="relative w-full overflow-hidden"
@@ -567,6 +722,7 @@ export default function PartidosPage() {
             </div>
           </div>
 
+
           <button
             onClick={() => scroll("right")}
             disabled={!canScrollRight}
@@ -594,10 +750,12 @@ export default function PartidosPage() {
         </div>
         </div>
 
+
         {/* LISTA DE PARTIDOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {visibleMatches.map((match) => {
             const closed = isMatchClosed(match.match_date);
+
 
             return (
               <Card
@@ -610,6 +768,7 @@ export default function PartidosPage() {
                 <div
                   className={`absolute top-0 left-0 w-full h-1 ${closed ? "bg-red-500/50" : "bg-[var(--primary)]"}`}
                 />
+
 
                 <div>
                   {/* HEADER: Fecha y Estado */}
@@ -647,6 +806,7 @@ export default function PartidosPage() {
                     </span>
                   </div>
 
+
                   {/* BODY: Enfrentamiento Cara a Cara con Banderas */}
                   <div className="flex items-center justify-between mb-8 relative px-2">
                     {/* Equipo Local */}
@@ -665,6 +825,7 @@ export default function PartidosPage() {
                       </span>
                     </div>
 
+
                     {/* Insignia VS Central */}
                     <div className="px-2 flex flex-col items-center justify-center z-10">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[var(--background)] border border-[var(--surface-border)] shadow-inner flex items-center justify-center">
@@ -673,6 +834,7 @@ export default function PartidosPage() {
                         </span>
                       </div>
                     </div>
+
 
                     {/* Equipo Visitante */}
                     <div className="flex flex-col items-center flex-1 z-10 w-1/3">
@@ -691,6 +853,7 @@ export default function PartidosPage() {
                     </div>
                   </div>
                 </div>
+
 
                 {/* FOOTER: Inputs de Pronóstico */}
                 <div className="pt-5 border-t border-[var(--surface-border)]/50 mt-auto">
@@ -729,9 +892,11 @@ export default function PartidosPage() {
                         </button>
                       </div>
 
+
                       <span className="text-[var(--text-secondary)] font-black text-lg opacity-50">
                         -
                       </span>
+
 
                       {/* Control Visitante */}
                       <div className="flex items-center bg-[var(--surface)] border border-[var(--surface-border)] rounded-xl p-1 focus-within:border-[var(--primary)] focus-within:ring-2 focus-within:ring-[var(--primary)]/20 transition-all shadow-sm">
@@ -764,6 +929,7 @@ export default function PartidosPage() {
                       </div>
                     </div>
 
+
                     <Button
                       className={`!w-full sm:!w-auto !p-0 px-8 h-12 text-sm font-bold shrink-0 shadow-md hover:shadow-lg transition-all ${closed ? "opacity-50" : ""}`}
                       disabled={closed || saving === match.id}
@@ -778,6 +944,7 @@ export default function PartidosPage() {
           })}
         </div>
 
+
         {visibleMatches.length === 0 && activeStage && (
           <div className="text-center bg-[var(--surface)] border border-[var(--surface-border)] rounded-2xl py-16 px-4 shadow-sm">
             <span className="text-4xl block mb-4">📅</span>
@@ -789,6 +956,45 @@ export default function PartidosPage() {
           </div>
         )}
       </div>
+      {/* MODAL DE REGLAS DE ELIMINATORIA */}
+      {showRulesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-[var(--surface)] border border-[var(--surface-border)] rounded-2xl shadow-2xl max-w-2xl w-full p-6 sm:p-8 relative mt-10 mb-10">
+            
+            <button 
+              onClick={() => setShowRulesModal(false)}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-[var(--background)] border border-[var(--surface-border)] text-[var(--text-secondary)] hover:text-[var(--primary)] hover:border-[var(--primary)] transition-colors"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-6 text-[var(--foreground)]">
+              <div className="text-center">
+                <h2 className="text-2xl font-black text-[var(--primary)] mb-2">Reglas para Fases Eliminatorias</h2>
+                <p className="text-sm text-[var(--text-secondary)]">Instrucciones para pronosticar Dieciseisavos de Final en adelante.</p>
+              </div>
+
+      
+              <div className="bg-[var(--primary)]/10 p-4 rounded-xl border border-[var(--primary)]/30 mt-4">
+                <p className="font-bold text-[var(--primary)] mb-2">¿Cómo pronosticar en esta etapa?</p>
+                <p className="text-sm text-[var(--text-secondary)] mb-3">
+                  pronostica el marcador oficial <strong>sumando los goles convertidos durante el juego mas la tanda de penales. </strong>
+                </p>
+                <div className="font-mono text-xs space-y-1 bg-[var(--background)] p-3 rounded-lg">
+                  <p>Resultado durante el juego: Sudáfrica 1 - 1 Canadá</p>
+                  <p>Penales: Sudáfrica 4 - 5 Canadá</p>
+                  <p className="text-[var(--primary)] font-bold mt-2">Marcador oficial final a pronosticar: <span>Sudáfrica 5 - 6 Canadá</span></p>
+                </div>
+              </div>
+
+              <Button className="w-full h-12 text-base mt-4" onClick={() => setShowRulesModal(false)}>
+                Entendido, corregir pronóstico
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
