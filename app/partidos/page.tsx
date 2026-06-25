@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
@@ -121,7 +121,7 @@ const getFlagUrl = (countryCode: string) =>
   `https://flagcdn.com/w80/${countryCode.toLowerCase()}.png`;
 
 
-export default function PartidosPage() {
+function PartidosPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams(); // <-- Nuevo
   const targetMatchId = searchParams.get("matchId"); // <-- Nuevo
@@ -998,3 +998,10 @@ const savePrediction = async (matchId: number) => {
   );
 }
 
+export default function PartidosPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-[var(--text-secondary)]">Cargando partidos...</p></div>}>
+      <PartidosPageContent />
+    </Suspense>
+  );
+}
