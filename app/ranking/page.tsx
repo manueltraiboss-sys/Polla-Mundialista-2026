@@ -16,6 +16,8 @@ type RankingUser = {
 export default function RankingPage() {
   const [ranking, setRanking] = useState<RankingUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [showingAll, setShowingAll] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const router = useRouter();
 
@@ -44,6 +46,25 @@ export default function RankingPage() {
 
     load();
   }, []);
+
+  const handleVerMas = async () => {
+    setLoadingMore(true);
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, points, ranking")
+      .order("ranking", { ascending: true });
+
+    if (error) {
+      toast.error("No se pudo cargar el ranking completo");
+      setLoadingMore(false);
+      return;
+    }
+
+    setRanking(data || []);
+    setShowingAll(true);
+    setLoadingMore(false);
+  };
 
   const podium = ranking.slice(0, 3);
   const maxPts = ranking[0]?.points || 1;
@@ -233,6 +254,26 @@ export default function RankingPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Botón Ver más */}
+              {!showingAll && ranking.length >= 10 && (
+                <div className="p-6 flex justify-center border-t border-[var(--surface-border)]">
+                  <button
+                    onClick={handleVerMas}
+                    disabled={loadingMore}
+                    className="px-6 py-2.5 rounded-full font-semibold text-sm text-white bg-[var(--primary)] hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Cargando...
+                      </>
+                    ) : (
+                      "Ver más"
+                    )}
+                  </button>
+                </div>
+              )}
             </Card>
           </>
         )}
